@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CricTrack - Cricket Match Manager</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#0a1628;color:#e8dcc8;min-height:100vh}
+.app{max-width:900px;margin:0 auto;padding:16px}
+h1,h2,h3{font-family:'Playfair Display',serif}
+.logo{text-align:center;padding:20px 0 12px;border-bottom:1px solid #1e3a5f;margin-bottom:20px}
+.logo h1{font-size:2rem;color:#d4a843;letter-spacing:2px}
+.logo p{color:#7a9dbf;font-size:0.8rem;letter-spacing:3px;text-transform:uppercase;margin-top:4px}
+.tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.tab{padding:8px 16px;border-radius:20px;border:1px solid #1e3a5f;background:transparent;color:#7a9dbf;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:0.85rem;font-weight:500;transition:all 0.2s}
+.tab.active,.tab:hover{background:#d4a843;color:#0a1628;border-color:#d4a843}
+.card{background:#0f2040;border:1px solid #1e3a5f;border-radius:16px;padding:20px;margin-bottom:16px}
+.card h2{font-size:1.2rem;color:#d4a843;margin-bottom:16px}
+.card h3{font-size:1rem;color:#b8cfe8;margin-bottom:12px}
+.btn{padding:10px 20px;border-radius:8px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;font-size:0.9rem;transition:all 0.15s}
+.btn:active{transform:scale(0.97)}
+.btn-gold{background:#d4a843;color:#0a1628}
+.btn-gold:hover{background:#e8bc55}
+.btn-outline{background:transparent;border:1px solid #1e3a5f;color:#b8cfe8}
+.btn-outline:hover{border-color:#d4a843;color:#d4a843}
+.btn-danger{background:#c0392b;color:#fff}
+.btn-danger:hover{background:#e74c3c}
+.btn-green{background:#27ae60;color:#fff}
+.btn-green:hover{background:#2ecc71}
+.btn-sm{padding:6px 12px;font-size:0.8rem;border-radius:6px}
+.btn-big{padding:18px 32px;font-size:1.1rem;border-radius:12px}
+.input{width:100%;padding:10px 14px;border-radius:8px;border:1px solid #1e3a5f;background:#0a1628;color:#e8dcc8;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none}
+.input:focus{border-color:#d4a843}
+.label{font-size:0.8rem;color:#7a9dbf;margin-bottom:6px;display:block;text-transform:uppercase;letter-spacing:1px}
+.field{margin-bottom:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.player-card{background:#0a1628;border:1px solid #1e3a5f;border-radius:12px;padding:12px;display:flex;flex-direction:column;align-items:center;gap:8px;position:relative}
+.player-card.team-a{border-color:#2563eb}
+.player-card.team-b{border-color:#dc2626}
+.player-avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #1e3a5f}
+.avatar-placeholder{width:64px;height:64px;border-radius:50%;background:#1e3a5f;display:flex;align-items:center;justify-content:center;font-size:1.4rem;color:#d4a843;font-family:'Playfair Display',serif;font-weight:700;border:2px solid #2a4a6f}
+.player-name{font-size:0.85rem;font-weight:600;text-align:center;color:#e8dcc8}
+.player-role{font-size:0.7rem;color:#7a9dbf}
+.badge{padding:3px 8px;border-radius:10px;font-size:0.7rem;font-weight:600}
+.badge-captain{background:#d4a843;color:#0a1628}
+.scoreboard{background:#0f2040;border:2px solid #d4a843;border-radius:20px;padding:24px;text-align:center;margin-bottom:20px}
+.score-big{font-family:'Playfair Display',serif;font-size:3rem;font-weight:900;color:#d4a843;line-height:1}
+.score-sub{font-size:0.9rem;color:#7a9dbf;margin-top:4px}
+.score-team{font-size:0.85rem;color:#b8cfe8;font-weight:600;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px}
+.over-count{font-size:1rem;color:#e8dcc8;margin-top:8px}
+.ball-row{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.ball{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;border:2px solid transparent}
+.ball-0{background:#1e3a5f;color:#7a9dbf;border-color:#2a4a6f}
+.ball-1,.ball-2,.ball-3{background:#27ae60;color:#fff;border-color:#2ecc71}
+.ball-4{background:#f39c12;color:#fff;border-color:#f1c40f}
+.ball-6{background:#d4a843;color:#0a1628;border-color:#e8bc55}
+.ball-wide{background:#8e44ad;color:#fff;border-color:#9b59b6}
+.ball-noball{background:#e74c3c;color:#fff;border-color:#c0392b}
+.ball-dot{background:#1e3a5f;color:#7a9dbf;border-color:#2a4a6f}
+.run-buttons{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:16px 0}
+.run-btn{padding:16px 8px;border-radius:12px;border:2px solid;font-size:1.1rem;font-weight:700;cursor:pointer;font-family:'Playfair Display',serif;transition:all 0.15s;background:transparent}
+.run-btn:active{transform:scale(0.95)}
+.run-0{border-color:#1e3a5f;color:#7a9dbf}.run-0:hover{background:#1e3a5f}
+.run-1{border-color:#27ae60;color:#27ae60}.run-1:hover{background:#1a4a2e}
+.run-2{border-color:#2980b9;color:#2980b9}.run-2:hover{background:#1a2a4a}
+.run-3{border-color:#8e44ad;color:#8e44ad}.run-3:hover{background:#2a1a3a}
+.run-4{border-color:#f39c12;color:#f39c12}.run-4:hover{background:#3a2a0a}
+.run-5{border-color:#16a085;color:#16a085}.run-5:hover{background:#0a2a20}
+.run-6{border-color:#d4a843;color:#d4a843}.run-6:hover{background:#2a1e0a}
+.extra-buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 16px}
+.extra-btn{padding:12px;border-radius:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:0.9rem;transition:all 0.15s;border:2px solid}
+.extra-btn:active{transform:scale(0.97)}
+.wide-btn{border-color:#8e44ad;color:#8e44ad;background:transparent}.wide-btn:hover{background:#2a0a3a}
+.noball-btn{border-color:#e74c3c;color:#e74c3c;background:transparent}.noball-btn:hover{background:#3a0a0a}
+.wicket-btn{padding:12px;border-radius:10px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:0.9rem;transition:all 0.15s;border:2px solid #e74c3c;color:#e74c3c;background:transparent;width:100%}
+.wicket-btn:hover{background:#3a0a0a}
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #1e3a5f;font-size:0.9rem}
+.stat-row:last-child{border-bottom:none}
+.stat-label{color:#7a9dbf}
+.stat-val{font-weight:600;color:#e8dcc8}
+.players-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px}
+.team-section{margin-bottom:20px}
+.team-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.team-dot{width:12px;height:12px;border-radius:50%}
+.dot-a{background:#2563eb}
+.dot-b{background:#dc2626}
+.team-name{font-size:1rem;font-weight:600;color:#b8cfe8}
+.select-btns{display:flex;gap:6px;margin-top:8px;width:100%}
+.team-btn{flex:1;padding:5px;border-radius:6px;border:2px solid;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;background:transparent}
+.team-btn.team-a{border-color:#2563eb;color:#2563eb}.team-btn.team-a.active,.team-btn.team-a:hover{background:#2563eb;color:#fff}
+.team-btn.team-b{border-color:#dc2626;color:#dc2626}.team-btn.team-b.active,.team-btn.team-b:hover{background:#dc2626;color:#fff}
+.captain-btn{padding:5px;border-radius:6px;border:2px solid #d4a843;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;color:#d4a843;background:transparent;width:100%;margin-top:4px;transition:all 0.15s}
+.captain-btn:hover,.captain-btn.active{background:#d4a843;color:#0a1628}
+.match-hist-card{background:#0a1628;border:1px solid #1e3a5f;border-radius:12px;padding:16px;margin-bottom:12px}
+.match-hist-card h3{font-size:1rem;color:#d4a843;margin-bottom:8px}
+.winner-badge{background:#d4a843;color:#0a1628;padding:4px 12px;border-radius:10px;font-size:0.8rem;font-weight:700;display:inline-block;margin-bottom:8px}
+.vs-text{color:#d4a843;font-size:0.85rem;font-weight:700}
+.notice{background:#1e3a5f;border-radius:10px;padding:12px 16px;font-size:0.85rem;color:#7a9dbf;text-align:center;margin-bottom:12px}
+.photo-upload{width:80px;height:80px;border-radius:50%;border:2px dashed #2a4a6f;display:flex;align-items:center;justify-content:center;cursor:pointer;background:#0a1628;overflow:hidden;flex-shrink:0}
+.photo-upload:hover{border-color:#d4a843}
+.photo-upload img{width:100%;height:100%;object-fit:cover}
+.over-done-banner{background:#d4a843;color:#0a1628;padding:12px;border-radius:10px;text-align:center;font-weight:700;font-size:1rem;margin-bottom:12px}
+.batting-stat{background:#0a1628;border:1px solid #1e3a5f;border-radius:10px;padding:12px;display:flex;align-items:center;gap:12px}
+.batting-name{font-weight:600;font-size:0.9rem}
+.batting-score{font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:#d4a843}
+.bowling-stat{background:#0a1628;border:1px solid #1e3a5f;border-radius:10px;padding:12px;display:flex;align-items:center;gap:12px}
+.section-divider{border:none;border-top:1px solid #1e3a5f;margin:16px 0}
+.alert-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:999}
+.alert-box{background:#0f2040;border:2px solid #d4a843;border-radius:20px;padding:32px;max-width:400px;width:90%;text-align:center}
+.alert-box h2{color:#d4a843;margin-bottom:16px}
+.alert-box p{color:#b8cfe8;margin-bottom:24px;line-height:1.6}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="crictrack-engine.js"></script>
+<script type="text/babel">
+const {useState,useEffect,useRef}=React;
+
+function saveLS(key,val){try{localStorage.setItem(key,JSON.stringify(val));}catch{}}
+function loadLS(key,def){try{const r=localStorage.getItem(key);return r?JSON.parse(r):def;}catch{return def;}}
+
+function App(){
+  const [tab,setTab]=useState('setup');
+  const [players,setPlayers]=useState(()=>loadLS('ct_players',[]));
+  const [teamAName,setTeamAName]=useState(()=>loadLS('ct_teamA','Team Alpha'));
+  const [teamBName,setTeamBName]=useState(()=>loadLS('ct_teamB','Team Beta'));
+  const [captainA,setCaptainA]=useState(()=>loadLS('ct_capA',null));
+  const [captainB,setCaptainB]=useState(()=>loadLS('ct_capB',null));
+  const [overs,setOvers]=useState(()=>loadLS('ct_overs',6));
+  const [match,setMatch]=useState(()=>loadLS('ct_match',null));
+  const [matchHistory,setMatchHistory]=useState(()=>loadLS('ct_history',[]));
+  const [addPlayer,setAddPlayer]=useState(false);
+  const [newName,setNewName]=useState('');
+  const [newRole,setNewRole]=useState('All-rounder');
+  const [newPhoto,setNewPhoto]=useState(null);
+  const [alert,setAlert]=useState(null);
+  const [undoStack,setUndoStack]=useState([]);
+  const [cropSrc,setCropSrc]=useState(null);
+  const photoRef=useRef();
+
+  useEffect(()=>saveLS('ct_players',players),[players]);
+  useEffect(()=>saveLS('ct_teamA',teamAName),[teamAName]);
+  useEffect(()=>saveLS('ct_teamB',teamBName),[teamBName]);
+  useEffect(()=>saveLS('ct_capA',captainA),[captainA]);
+  useEffect(()=>saveLS('ct_capB',captainB),[captainB]);
+  useEffect(()=>saveLS('ct_overs',overs),[overs]);
+  useEffect(()=>saveLS('ct_match',match),[match]);
+  useEffect(()=>saveLS('ct_history',matchHistory),[matchHistory]);
+
+  const handlePhoto=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>setCropSrc(ev.target.result);r.readAsDataURL(f);e.target.value='';};
+
+  const savePlayer=()=>{
+    if(!newName.trim())return;
+    setPlayers(prev=>[...prev,{id:Date.now(),name:newName.trim(),role:newRole,photo:newPhoto,team:null}]);
+    setNewName('');setNewRole('All-rounder');setNewPhoto(null);setAddPlayer(false);
+  };
+
+  const removePlayer=id=>setPlayers(prev=>prev.filter(p=>p.id!==id));
+  const assignTeam=(id,team)=>setPlayers(prev=>prev.map(p=>p.id===id?{...p,team}:p));
+
+  const startMatch=()=>{
+    const teamA=players.filter(p=>p.team==='A');
+    const teamB=players.filter(p=>p.team==='B');
+    if(teamA.length<2||teamB.length<2){
+      setAlert({title:'Not enough players',msg:'Each team needs at least 2 players.',ok:()=>setAlert(null)});return;
+    }
+    setAlert({title:'Toss Time!',msg:'Who won the toss and chose to bat first?',choices:[
+      {label:teamAName,val:'A'},{label:teamBName,val:'B'}
+    ],ok:(v)=>{
+      const m={
+        id:Date.now(),
+        date:new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}),
+        teamA:{name:teamAName,players:[...teamA],captain:captainA,score:0,wickets:0,overs:0,balls:0,extras:0},
+        teamB:{name:teamBName,players:[...teamB],captain:captainB,score:0,wickets:0,overs:0,balls:0,extras:0},
+        maxOvers:overs,innings:1,battingTeam:v,bowlingTeam:v==='A'?'B':'A',
+        striker:null,nonStriker:null,currentBowler:null,
+        batsmen:{},bowlers:{},ballHistory:[],currentOverBalls:[],status:'live',winner:null
+      };
+      setMatch(m);setTab('match');setAlert(null);
+    }});
+  };
+
+  // Every match-changing action goes through applyMatch so it can be undone.
+  const applyMatch=next=>{setUndoStack(s=>[...s,match].slice(-60));setMatch(next);};
+
+  const undo=()=>{
+    if(!undoStack.length)return;
+    const prev=undoStack[undoStack.length-1];
+    // If we're undoing the last ball of a finished match, also drop the
+    // history record that ball created.
+    if(match&&match.status==='done')setMatchHistory(h=>h.filter(x=>x.id!==match.id));
+    setMatch(prev);
+    setUndoStack(s=>s.slice(0,-1));
+  };
+
+  const selectBatsmen=(m,striker,nonStriker)=>applyMatch(CricEngine.selectBatsmen(m,striker,nonStriker));
+  const selectBowler=(m,bowlerId)=>applyMatch(CricEngine.selectBowler(m,bowlerId));
+
+  // Send a batsman/bowler back to the selection screen. For batsmen we only
+  // allow it before they've faced a ball (otherwise use Undo) and we clean up
+  // the unused stat entry so no "ghost" batsman is left behind.
+  const changeBowler=()=>{if(match)applyMatch({...match,currentBowler:null});};
+  const changeBatsman=which=>{
+    if(!match)return;
+    const id=match[which];
+    const next={...match,[which]:null};
+    if(id&&match.batsmen[id]&&match.batsmen[id].balls===0){
+      const nb={...match.batsmen};delete nb[id];next.batsmen=nb;
+    }
+    applyMatch(next);
+  };
+
+  const recordBall=(type,runs=0,dismissal=null)=>{
+    if(!match||match.status==='done')return;
+    const {match:next,event}=CricEngine.recordBall(match,type,runs,dismissal);
+    if(event&&event.type==='inningsBreak'){
+      // Defer applying the 2nd innings until the scorer taps Continue.
+      setAlert({title:event.title,msg:event.msg,ok:()=>{applyMatch(next);setAlert(null);}});
+      return;
+    }
+    if(event&&event.type==='matchOver'){
+      applyMatch(next);
+      setMatchHistory(prev=>[next,...prev]);
+      setAlert({title:event.title,msg:event.msg,ok:()=>{setTab('history');setAlert(null);}});
+      return;
+    }
+    applyMatch(next);
+    if(event&&event.type==='overDone'){
+      setAlert({title:event.title,msg:event.msg,ok:()=>setAlert(null)});
+    }
+  };
+
+  const getPlayerName=id=>{
+    const all=[...players,...(match?[...match.teamA.players,...match.teamB.players]:[])];
+    return (all.find(p=>String(p.id)===String(id))||{name:'?'}).name;
+  };
+  const getPlayerPhoto=id=>{
+    const all=[...players,...(match?[...match.teamA.players,...match.teamB.players]:[])];
+    return (all.find(p=>String(p.id)===String(id))||{}).photo||null;
+  };
+
+  return(
+    <div className="app">
+      <div className="logo"><h1>🏏 CricTrack</h1><p>Match Manager & Stats</p></div>
+      <div className="tabs">
+        {[['setup','⚙ Setup'],['players','👤 Players'],['teams','🏟 Teams'],['match','🏏 Live'],['history','📋 History']].map(([id,label])=>(
+          <button key={id} className={`tab${tab===id?' active':''}`} onClick={()=>setTab(id)}>{label}</button>
+        ))}
+      </div>
+
+      {tab==='setup'&&<SetupTab teamAName={teamAName} teamBName={teamBName} setTeamAName={setTeamAName} setTeamBName={setTeamBName} overs={overs} setOvers={setOvers} players={players} onStart={startMatch}/>}
+      {tab==='players'&&<PlayersTab players={players} addPlayer={addPlayer} setAddPlayer={setAddPlayer} newName={newName} setNewName={setNewName} newRole={newRole} setNewRole={setNewRole} newPhoto={newPhoto} setNewPhoto={setNewPhoto} photoRef={photoRef} handlePhoto={handlePhoto} savePlayer={savePlayer} removePlayer={removePlayer} cropSrc={cropSrc} setCropSrc={setCropSrc}/>}
+      {tab==='teams'&&<TeamsTab players={players} teamAName={teamAName} teamBName={teamBName} captainA={captainA} captainB={captainB} setCaptainA={setCaptainA} setCaptainB={setCaptainB} assignTeam={assignTeam}/>}
+      {tab==='match'&&<MatchTab match={match} selectBatsmen={selectBatsmen} selectBowler={selectBowler} recordBall={recordBall} getPlayerName={getPlayerName} getPlayerPhoto={getPlayerPhoto} undo={undo} canUndo={undoStack.length>0} changeBowler={changeBowler} changeBatsman={changeBatsman}/>}
+      {tab==='history'&&<HistoryTab matchHistory={matchHistory}/>}
+      {alert&&<AlertModal alert={alert}/>}
+    </div>
+  );
+}
+
+function SetupTab({teamAName,teamBName,setTeamAName,setTeamBName,overs,setOvers,players,onStart}){
+  return(
+    <div>
+      <div className="card">
+        <h2>Match Setup</h2>
+        <div className="grid2">
+          <div className="field"><label className="label">Team 1 Name</label><input className="input" value={teamAName} onChange={e=>setTeamAName(e.target.value)}/></div>
+          <div className="field"><label className="label">Team 2 Name</label><input className="input" value={teamBName} onChange={e=>setTeamBName(e.target.value)}/></div>
+        </div>
+        <div className="field"><label className="label">Overs</label>
+          <div style={{display:'flex',gap:'8px',flexWrap:'wrap',alignItems:'center'}}>
+            {[2,5,6,10,15,20].map(o=><button key={o} className={`btn btn-sm ${overs===o?'btn-gold':'btn-outline'}`} onClick={()=>setOvers(o)}>{o}</button>)}
+            <input type="number" className="input" style={{width:'80px'}} value={overs} min={1} max={50} onChange={e=>setOvers(Number(e.target.value))}/>
+          </div>
+        </div>
+        <div className="stat-row"><span className="stat-label">{teamAName} players</span><span className="stat-val">{players.filter(p=>p.team==='A').length}</span></div>
+        <div className="stat-row"><span className="stat-label">{teamBName} players</span><span className="stat-val">{players.filter(p=>p.team==='B').length}</span></div>
+        <br/>
+        <button className="btn btn-gold btn-big" style={{width:'100%'}} onClick={onStart}>🏏 Start Match</button>
+      </div>
+      <div className="notice">Go to <b>Players</b> to add players → <b>Teams</b> to assign teams & captains → come back here to start</div>
+    </div>
+  );
+}
+
+function PhotoCropper({src,onCancel,onCrop}){
+  const S=260, OUT=400;
+  const [zoom,setZoom]=useState(1);
+  const [px,setPx]=useState(0.5);
+  const [py,setPy]=useState(0.5);
+  const [dim,setDim]=useState(null);
+  useEffect(()=>{const img=new Image();img.onload=()=>setDim({w:img.naturalWidth,h:img.naturalHeight});img.src=src;},[src]);
+
+  // Map the chosen zoom/pan to image draw rect for a given output square size.
+  const layout=size=>{
+    if(!dim)return{drawW:size,drawH:size,dx:0,dy:0};
+    const base=Math.max(size/dim.w,size/dim.h);
+    const scale=base*zoom;
+    const drawW=dim.w*scale, drawH=dim.h*scale;
+    return{drawW,drawH,dx:-(drawW-size)*px,dy:-(drawH-size)*py};
+  };
+  const p=layout(S);
+
+  const doCrop=()=>{
+    const c=document.createElement('canvas');c.width=OUT;c.height=OUT;
+    const ctx=c.getContext('2d');
+    const img=new Image();
+    img.onload=()=>{const l=layout(OUT);ctx.drawImage(img,l.dx,l.dy,l.drawW,l.drawH);onCrop(c.toDataURL('image/jpeg',0.85));};
+    img.src=src;
+  };
+
+  return(
+    <div className="alert-overlay" onClick={e=>{if(e.target.classList.contains('alert-overlay'))onCancel();}}>
+      <div className="alert-box" style={{maxWidth:'340px'}}>
+        <h2>Crop Photo</h2>
+        <div style={{width:S,height:S,borderRadius:'50%',overflow:'hidden',margin:'0 auto 16px',position:'relative',background:'#0a1628',border:'2px solid #d4a843'}}>
+          <img src={src} alt="" style={{position:'absolute',left:p.dx,top:p.dy,width:p.drawW,height:p.drawH,maxWidth:'none',userSelect:'none',pointerEvents:'none'}}/>
+        </div>
+        <div className="field"><label className="label">Zoom</label>
+          <input type="range" min={1} max={3} step={0.01} value={zoom} onChange={e=>setZoom(Number(e.target.value))} style={{width:'100%'}}/></div>
+        <div className="field"><label className="label">Move ↔</label>
+          <input type="range" min={0} max={1} step={0.01} value={px} onChange={e=>setPx(Number(e.target.value))} style={{width:'100%'}}/></div>
+        <div className="field"><label className="label">Move ↕</label>
+          <input type="range" min={0} max={1} step={0.01} value={py} onChange={e=>setPy(Number(e.target.value))} style={{width:'100%'}}/></div>
+        <div style={{display:'flex',gap:'10px',justifyContent:'center',marginTop:'8px'}}>
+          <button className="btn btn-gold btn-big" onClick={doCrop}>Use Photo</button>
+          <button className="btn btn-outline btn-big" onClick={onCancel}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlayersTab({players,addPlayer,setAddPlayer,newName,setNewName,newRole,setNewRole,newPhoto,setNewPhoto,photoRef,handlePhoto,savePlayer,removePlayer,cropSrc,setCropSrc}){
+  return(
+    <div>
+      {cropSrc&&<PhotoCropper src={cropSrc} onCancel={()=>setCropSrc(null)} onCrop={d=>{setNewPhoto(d);setCropSrc(null);}}/>}
+      <div className="card">
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}}>
+          <h2 style={{margin:0}}>Players ({players.length})</h2>
+          <button className="btn btn-gold btn-sm" onClick={()=>setAddPlayer(true)}>+ Add Player</button>
+        </div>
+        {addPlayer&&(
+          <div style={{background:'#0a1628',border:'1px solid #d4a843',borderRadius:'12px',padding:'16px',marginBottom:'16px'}}>
+            <div style={{display:'flex',alignItems:'flex-start',gap:'16px',marginBottom:'14px'}}>
+              <div className="photo-upload" onClick={()=>photoRef.current.click()}>
+                {newPhoto?<img src={newPhoto} alt=""/>:<span style={{fontSize:'1.5rem'}}>📷</span>}
+              </div>
+              <input type="file" ref={photoRef} accept="image/*" style={{display:'none'}} onChange={handlePhoto}/>
+              <div style={{flex:1}}>
+                <div className="field"><label className="label">Name</label><input className="input" placeholder="Player name" value={newName} onChange={e=>setNewName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&savePlayer()}/></div>
+                <div className="field"><label className="label">Role</label>
+                  <select className="input" value={newRole} onChange={e=>setNewRole(e.target.value)}>
+                    {['Batsman','Bowler','All-rounder','Wicket-keeper'].map(r=><option key={r}>{r}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div style={{display:'flex',gap:'8px'}}>
+              <button className="btn btn-gold" onClick={savePlayer}>Save</button>
+              <button className="btn btn-outline" onClick={()=>{setAddPlayer(false);setNewName('');setNewPhoto(null);}}>Cancel</button>
+            </div>
+          </div>
+        )}
+        {players.length===0&&<div className="notice">No players yet. Add players to begin!</div>}
+        <div className="players-list">
+          {players.map(p=>(
+            <div key={p.id} className={`player-card${p.team?' team-'+p.team.toLowerCase():''}`}>
+              {p.photo?<img src={p.photo} alt={p.name} className="player-avatar"/>:<div className="avatar-placeholder">{p.name[0].toUpperCase()}</div>}
+              <div className="player-name">{p.name}</div>
+              <div className="player-role">{p.role}</div>
+              {p.team&&<div style={{fontSize:'0.7rem',color:p.team==='A'?'#2563eb':'#dc2626',fontWeight:600}}>Team {p.team}</div>}
+              <button className="btn btn-sm btn-danger" style={{width:'100%',marginTop:'4px'}} onClick={()=>removePlayer(p.id)}>Remove</button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TeamsTab({players,teamAName,teamBName,captainA,captainB,setCaptainA,setCaptainB,assignTeam}){
+  const teamA=players.filter(p=>p.team==='A');
+  const teamB=players.filter(p=>p.team==='B');
+  return(
+    <div>
+      <div className="card">
+        <h2>Assign Teams & Captains</h2>
+        <div className="notice">Tap the team button to assign players. Then tap 👑 to mark captain.</div>
+        <div className="players-list">
+          {players.map(p=>(
+            <div key={p.id} className={`player-card${p.team?' team-'+p.team.toLowerCase():''}`}>
+              {p.photo?<img src={p.photo} alt={p.name} className="player-avatar"/>:<div className="avatar-placeholder">{p.name[0].toUpperCase()}</div>}
+              <div className="player-name">{p.name}</div>
+              <div className="player-role">{p.role}</div>
+              {(captainA===p.id||captainB===p.id)&&<span className="badge badge-captain">Captain</span>}
+              <div className="select-btns">
+                <button className={`team-btn team-a${p.team==='A'?' active':''}`} onClick={()=>assignTeam(p.id,'A')}>{teamAName.slice(0,3)}</button>
+                <button className={`team-btn team-b${p.team==='B'?' active':''}`} onClick={()=>assignTeam(p.id,'B')}>{teamBName.slice(0,3)}</button>
+              </div>
+              {p.team==='A'&&<button className={`captain-btn${captainA===p.id?' active':''}`} onClick={()=>setCaptainA(p.id===captainA?null:p.id)}>👑 Captain</button>}
+              {p.team==='B'&&<button className={`captain-btn${captainB===p.id?' active':''}`} onClick={()=>setCaptainB(p.id===captainB?null:p.id)}>👑 Captain</button>}
+            </div>
+          ))}
+        </div>
+        <hr className="section-divider"/>
+        <div className="grid2">
+          <div><div className="team-header"><div className="team-dot dot-a"></div><span className="team-name">{teamAName} ({teamA.length})</span></div>
+            {teamA.map(p=><div key={p.id} style={{fontSize:'0.85rem',padding:'4px 0',color:'#e8dcc8'}}>{captainA===p.id?'👑 ':''}{p.name}</div>)}
+          </div>
+          <div><div className="team-header"><div className="team-dot dot-b"></div><span className="team-name">{teamBName} ({teamB.length})</span></div>
+            {teamB.map(p=><div key={p.id} style={{fontSize:'0.85rem',padding:'4px 0',color:'#e8dcc8'}}>{captainB===p.id?'👑 ':''}{p.name}</div>)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MatchTab({match,selectBatsmen,selectBowler,recordBall,getPlayerName,getPlayerPhoto,undo,canUndo,changeBowler,changeBatsman}){
+  const [wkt,setWkt]=useState(null);
+  const [extra,setExtra]=useState(null);
+  if(!match)return<div className="card"><div className="notice">No active match. Go to Setup and start a match!</div></div>;
+  const bt=match.battingTeam;
+  const bwt=match.bowlingTeam;
+  const battingTeam=match[`team${bt}`];
+  const bowlingTeam=match[`team${bwt}`];
+  const target=match.innings===2?match[`team${bwt}`].score+1:null;
+  const goodBalls=match.currentOverBalls.filter(b=>!b.isExtra).length;
+  const strikerData=match.striker?match.batsmen[match.striker]:null;
+  const nonStrikerData=match.nonStriker?match.batsmen[match.nonStriker]:null;
+  const bowlerData=match.currentBowler?match.bowlers[match.currentBowler]:null;
+
+  const availBatsmen=battingTeam.players.filter(p=>{
+    const bs=match.batsmen[p.id];
+    return (!bs||!bs.out)&&p.id!==match.striker&&p.id!==match.nonStriker;
+  });
+  // A bowler can't bowl two overs in a row, so exclude whoever bowled the last
+  // over. Fall back to everyone if that would leave nobody (tiny teams).
+  const bowlerCandidates=bowlingTeam.players.filter(p=>String(p.id)!==String(match.lastBowler));
+  const availBowlers=bowlerCandidates.length?bowlerCandidates:bowlingTeam.players;
+
+  const getBallClass=b=>{
+    if(b.type==='wide')return 'ball-wide';
+    if(b.type==='noball')return 'ball-noball';
+    if(b.type==='wicket')return 'ball-dot';
+    if(b.runs===4)return 'ball-4';
+    if(b.runs===6)return 'ball-6';
+    if(b.runs===0)return 'ball-dot';
+    return 'ball-1';
+  };
+  const getBallLabel=b=>{
+    if(b.type==='wide')return b.wicket?'Wd+W':'Wd';
+    if(b.type==='noball')return b.wicket?'NB+W':'NB';
+    if(b.type==='wicket')return 'W';
+    return b.runs;
+  };
+
+  const MiniAvatar=({id,size=40})=>{
+    const photo=getPlayerPhoto(id);
+    const name=getPlayerName(id);
+    return photo
+      ?<img src={photo} alt={name} style={{width:size,height:size,borderRadius:'50%',objectFit:'cover',border:'2px solid #1e3a5f',flexShrink:0}}/>
+      :<div style={{width:size,height:size,borderRadius:'50%',background:'#1e3a5f',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.9rem',color:'#d4a843',fontWeight:700,flexShrink:0}}>{name[0]}</div>;
+  };
+
+  return(
+    <div>
+      {match.status==='done'&&<div className="over-done-banner">🏆 Match Complete — Winner: {match.winner}</div>}
+
+      <div className="scoreboard">
+        <div className="score-team">{battingTeam.name} — {match.innings===1?'1st Innings':`2nd Innings (Target: ${target})`}</div>
+        <div className="score-big">{battingTeam.score}/{battingTeam.wickets}</div>
+        <div className="score-sub">Overs: {battingTeam.overs}.{goodBalls} / {match.maxOvers} &nbsp;|&nbsp; Extras: {battingTeam.extras}</div>
+        <div className="ball-row">
+          {match.currentOverBalls.map((b,i)=><div key={i} className={`ball ${getBallClass(b)}`}>{getBallLabel(b)}</div>)}
+          {Array(Math.max(0,6-goodBalls)).fill(0).map((_,i)=><div key={'e'+i} className="ball ball-0">·</div>)}
+        </div>
+      </div>
+
+      <button className="btn btn-outline" style={{width:'100%',marginBottom:'12px',opacity:canUndo?1:0.4,cursor:canUndo?'pointer':'not-allowed'}} disabled={!canUndo} onClick={undo}>↶ Undo last action</button>
+
+      <div className="grid2" style={{marginBottom:'12px'}}>
+        <div className="batting-stat">
+          {match.striker?<MiniAvatar id={match.striker}/>:<div style={{width:40,height:40,borderRadius:'50%',background:'#1e3a5f',flexShrink:0}}/>}
+          <div>
+            <div className="batting-name">{match.striker?getPlayerName(match.striker):'—'} <span style={{color:'#d4a843'}}>★</span></div>
+            <div className="batting-score">{strikerData?`${strikerData.runs}(${strikerData.balls})`:'0(0)'}</div>
+            <div style={{fontSize:'0.7rem',color:'#7a9dbf'}}>{strikerData?`4s:${strikerData.fours} 6s:${strikerData.sixes}`:''}</div>
+          </div>
+          {match.status==='live'&&match.striker&&strikerData&&strikerData.balls===0&&<button className="btn btn-sm btn-outline" style={{marginLeft:'auto'}} onClick={()=>changeBatsman('striker')}>Change</button>}
+        </div>
+        <div className="batting-stat">
+          {match.nonStriker?<MiniAvatar id={match.nonStriker}/>:<div style={{width:40,height:40,borderRadius:'50%',background:'#1e3a5f',flexShrink:0}}/>}
+          <div>
+            <div className="batting-name">{match.nonStriker?getPlayerName(match.nonStriker):'—'}</div>
+            <div className="batting-score">{nonStrikerData?`${nonStrikerData.runs}(${nonStrikerData.balls})`:'0(0)'}</div>
+            <div style={{fontSize:'0.7rem',color:'#7a9dbf'}}>{nonStrikerData?`4s:${nonStrikerData.fours} 6s:${nonStrikerData.sixes}`:''}</div>
+          </div>
+          {match.status==='live'&&match.nonStriker&&nonStrikerData&&nonStrikerData.balls===0&&<button className="btn btn-sm btn-outline" style={{marginLeft:'auto'}} onClick={()=>changeBatsman('nonStriker')}>Change</button>}
+        </div>
+      </div>
+
+      <div className="bowling-stat" style={{marginBottom:'12px'}}>
+        <div style={{width:40,height:40,borderRadius:'50%',background:'#1e3a5f',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1rem',flexShrink:0}}>🎯</div>
+        <div>
+          <div className="batting-name">{match.currentBowler?getPlayerName(match.currentBowler):'Select Bowler'}</div>
+          <div style={{fontSize:'0.85rem',color:'#7a9dbf'}}>{bowlerData?`${bowlerData.overs}.${bowlerData.balls} ov | ${bowlerData.runs} runs | ${bowlerData.wickets}W`:''}</div>
+        </div>
+        {match.status==='live'&&match.currentBowler&&<button className="btn btn-sm btn-outline" style={{marginLeft:'auto'}} onClick={changeBowler}>Change</button>}
+      </div>
+
+      {(!match.striker||!match.nonStriker)&&match.status==='live'&&(
+        <div className="card" style={{borderColor:'#d4a843'}}>
+          <h3>Select {!match.striker?'Striker ★':'Non-Striker'}</h3>
+          <div className="players-list">
+            {availBatsmen.map(p=>(
+              <div key={p.id} className="player-card" style={{cursor:'pointer'}} onClick={()=>{
+                if(!match.striker)selectBatsmen(match,p.id,match.nonStriker);
+                else selectBatsmen(match,match.striker,p.id);
+              }}>
+                {p.photo?<img src={p.photo} alt={p.name} className="player-avatar"/>:<div className="avatar-placeholder">{p.name[0]}</div>}
+                <div className="player-name">{p.name}</div>
+                <div style={{fontSize:'0.7rem',color:'#d4a843',fontWeight:600}}>Tap to select</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!match.currentBowler&&match.status==='live'&&(
+        <div className="card" style={{borderColor:'#e74c3c'}}>
+          <h3>Select Bowler</h3>
+          {match.lastBowler&&<div className="notice" style={{marginBottom:'12px'}}>{getPlayerName(match.lastBowler)} bowled the last over and can't bowl again now.</div>}
+          <div className="players-list">
+            {availBowlers.map(p=>(
+              <div key={p.id} className="player-card" style={{cursor:'pointer'}} onClick={()=>selectBowler(match,p.id)}>
+                {p.photo?<img src={p.photo} alt={p.name} className="player-avatar"/>:<div className="avatar-placeholder">{p.name[0]}</div>}
+                <div className="player-name">{p.name}</div>
+                <div style={{fontSize:'0.7rem',color:'#e74c3c',fontWeight:600}}>Tap to select</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {match.striker&&match.nonStriker&&match.currentBowler&&match.status==='live'&&(
+        <div className="card">
+          <h3>Record Ball</h3>
+          <div className="run-buttons">
+            {[0,1,2,3,4,5,6].map(r=>(
+              <button key={r} className={`run-btn run-${r}`} onClick={()=>recordBall('run',r)}>
+                {r===0?'Dot':r===4?'FOUR':r===6?'SIX':r}
+              </button>
+            ))}
+          </div>
+          <div className="extra-buttons">
+            <button className="extra-btn wide-btn" onClick={()=>setExtra({kind:'wide',runs:0,dType:null,fielder:null,outBatsman:match.striker})}>Wide</button>
+            <button className="extra-btn noball-btn" onClick={()=>setExtra({kind:'noball',runs:0,dType:null,fielder:null,outBatsman:match.striker})}>No Ball</button>
+          </div>
+          <button className="wicket-btn" onClick={()=>setWkt({type:null,fielder:null,outBatsman:match.striker})}>🚨 WICKET — Batsman Out!</button>
+        </div>
+      )}
+
+      <div className="card">
+        <h2>Scorecard</h2>
+        <h3 style={{marginBottom:'10px'}}>Batting — {battingTeam.name}</h3>
+        {battingTeam.players.map(p=>{
+          const bs=match.batsmen[p.id]||match.batsmen[String(p.id)];
+          if(!bs)return null;
+          return(
+            <div key={p.id} className="stat-row">
+              <span className="stat-label">{String(p.id)===String(match.striker)?'★ ':''}{getPlayerName(p.id)} <span style={{color:bs.out?'#e74c3c':'#27ae60',fontSize:'0.75rem'}}>({bs.out?(bs.howOut||'out'):'not out'})</span></span>
+              <span className="stat-val">{bs.runs}({bs.balls}b) {bs.fours?`| ${bs.fours}×4`:''} {bs.sixes?`| ${bs.sixes}×6`:''}</span>
+            </div>
+          );
+        })}
+        <hr className="section-divider"/>
+        <h3 style={{marginBottom:'10px'}}>Bowling — {bowlingTeam.name}</h3>
+        {Object.entries(match.bowlers).filter(([id])=>bowlingTeam.players.some(p=>String(p.id)===String(id))).map(([id,b])=>(
+          <div key={id} className="stat-row">
+            <span className="stat-label">{getPlayerName(id)}</span>
+            <span className="stat-val">{b.overs}.{b.balls}ov | {b.runs}R | {b.wickets}W | Wd:{b.wides} NB:{b.noBalls}</span>
+          </div>
+        ))}
+      </div>
+
+      {wkt&&(
+        <div className="alert-overlay" onClick={e=>{if(e.target.classList.contains('alert-overlay'))setWkt(null);}}>
+          <div className="alert-box" style={{maxWidth:'460px'}}>
+            <h2>🚨 How was the batsman out?</h2>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',margin:'8px 0 16px'}}>
+              {[['bowled','Bowled'],['lbw','LBW'],['caught','Caught'],['stumped','Stumped'],['runout','Run Out'],['hitwicket','Hit Wicket']].map(([v,l])=>(
+                <button key={v} className={`btn ${wkt.type===v?'btn-gold':'btn-outline'}`} onClick={()=>setWkt({...wkt,type:v,fielder:null,outBatsman:match.striker})}>{l}</button>
+              ))}
+            </div>
+            {wkt.type==='runout'&&(
+              <div style={{marginBottom:'14px'}}>
+                <label className="label">Who is out?</label>
+                <div style={{display:'flex',gap:'8px',justifyContent:'center',flexWrap:'wrap'}}>
+                  {match.striker&&<button className={`btn btn-sm ${String(wkt.outBatsman)===String(match.striker)?'btn-gold':'btn-outline'}`} onClick={()=>setWkt({...wkt,outBatsman:match.striker})}>★ {getPlayerName(match.striker)}</button>}
+                  {match.nonStriker&&<button className={`btn btn-sm ${String(wkt.outBatsman)===String(match.nonStriker)?'btn-gold':'btn-outline'}`} onClick={()=>setWkt({...wkt,outBatsman:match.nonStriker})}>{getPlayerName(match.nonStriker)}</button>}
+                </div>
+              </div>
+            )}
+            {(wkt.type==='caught'||wkt.type==='stumped'||wkt.type==='runout')&&(
+              <div style={{marginBottom:'14px'}}>
+                <label className="label">{wkt.type==='caught'?'Caught by':wkt.type==='stumped'?'Stumped by':'Fielder (run out by)'}</label>
+                <div style={{display:'flex',flexWrap:'wrap',gap:'6px',justifyContent:'center'}}>
+                  {bowlingTeam.players.map(p=>(
+                    <button key={p.id} className={`btn btn-sm ${String(wkt.fielder)===String(p.id)?'btn-gold':'btn-outline'}`} onClick={()=>setWkt({...wkt,fielder:p.id})}>{p.name}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {(()=>{
+              const needsFielder=wkt.type==='caught'||wkt.type==='stumped'||wkt.type==='runout';
+              const canConfirm=!!wkt.type&&(!needsFielder||!!wkt.fielder);
+              return(
+                <div style={{display:'flex',gap:'10px',justifyContent:'center',marginTop:'8px'}}>
+                  <button className="btn btn-danger btn-big" style={{opacity:canConfirm?1:0.4,cursor:canConfirm?'pointer':'not-allowed'}} disabled={!canConfirm} onClick={()=>{recordBall('wicket',0,{type:wkt.type,fielder:wkt.fielder,outBatsman:wkt.outBatsman});setWkt(null);}}>Confirm Out</button>
+                  <button className="btn btn-outline btn-big" onClick={()=>setWkt(null)}>Cancel</button>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {extra&&(
+        <div className="alert-overlay" onClick={e=>{if(e.target.classList.contains('alert-overlay'))setExtra(null);}}>
+          <div className="alert-box" style={{maxWidth:'460px'}}>
+            <h2>{extra.kind==='noball'?'No Ball (+1)':'Wide (+1)'}</h2>
+            <label className="label">{extra.kind==='noball'?'Runs scored off the bat':'Extra runs taken (byes)'}</label>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'8px',margin:'8px 0 16px'}}>
+              {(extra.kind==='noball'?[0,1,2,3,4,6]:[0,1,2,3,4]).map(r=>(
+                <button key={r} className={`btn ${extra.runs===r?'btn-gold':'btn-outline'}`} onClick={()=>setExtra({...extra,runs:r})}>{r}</button>
+              ))}
+            </div>
+            <label className="label">Wicket on this ball? (optional)</label>
+            <div style={{display:'flex',gap:'8px',flexWrap:'wrap',margin:'8px 0 14px'}}>
+              <button className={`btn btn-sm ${!extra.dType?'btn-gold':'btn-outline'}`} onClick={()=>setExtra({...extra,dType:null,fielder:null})}>No wicket</button>
+              <button className={`btn btn-sm ${extra.dType==='runout'?'btn-gold':'btn-outline'}`} onClick={()=>setExtra({...extra,dType:'runout',fielder:null,outBatsman:match.striker})}>Run Out</button>
+              {extra.kind==='wide'&&<button className={`btn btn-sm ${extra.dType==='stumped'?'btn-gold':'btn-outline'}`} onClick={()=>setExtra({...extra,dType:'stumped',fielder:null,outBatsman:match.striker})}>Stumped</button>}
+            </div>
+            {extra.dType==='runout'&&(
+              <div style={{marginBottom:'14px'}}>
+                <label className="label">Who is out?</label>
+                <div style={{display:'flex',gap:'8px',justifyContent:'center',flexWrap:'wrap'}}>
+                  {match.striker&&<button className={`btn btn-sm ${String(extra.outBatsman)===String(match.striker)?'btn-gold':'btn-outline'}`} onClick={()=>setExtra({...extra,outBatsman:match.striker})}>★ {getPlayerName(match.striker)}</button>}
+                  {match.nonStriker&&<button className={`btn btn-sm ${String(extra.outBatsman)===String(match.nonStriker)?'btn-gold':'btn-outline'}`} onClick={()=>setExtra({...extra,outBatsman:match.nonStriker})}>{getPlayerName(match.nonStriker)}</button>}
+                </div>
+              </div>
+            )}
+            {(extra.dType==='runout'||extra.dType==='stumped')&&(
+              <div style={{marginBottom:'14px'}}>
+                <label className="label">{extra.dType==='stumped'?'Stumped by':'Fielder (run out by)'}</label>
+                <div style={{display:'flex',flexWrap:'wrap',gap:'6px',justifyContent:'center'}}>
+                  {bowlingTeam.players.map(p=>(
+                    <button key={p.id} className={`btn btn-sm ${String(extra.fielder)===String(p.id)?'btn-gold':'btn-outline'}`} onClick={()=>setExtra({...extra,fielder:p.id})}>{p.name}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {(()=>{
+              const canConfirm=!extra.dType||!!extra.fielder;
+              return(
+                <div style={{display:'flex',gap:'10px',justifyContent:'center',marginTop:'8px'}}>
+                  <button className="btn btn-gold btn-big" style={{opacity:canConfirm?1:0.4,cursor:canConfirm?'pointer':'not-allowed'}} disabled={!canConfirm}
+                    onClick={()=>{
+                      const dismissal=extra.dType?{type:extra.dType,fielder:extra.fielder,outBatsman:extra.dType==='stumped'?match.striker:extra.outBatsman}:null;
+                      recordBall(extra.kind,extra.runs,dismissal);setExtra(null);
+                    }}>Confirm</button>
+                  <button className="btn btn-outline btn-big" onClick={()=>setExtra(null)}>Cancel</button>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HistoryTab({matchHistory}){
+  const [expanded,setExpanded]=useState(null);
+  if(matchHistory.length===0)return<div className="card"><div className="notice">No match history yet. Play some matches!</div></div>;
+  return(
+    <div>
+      <h2 style={{color:'#d4a843',marginBottom:'16px',fontFamily:"'Playfair Display',serif"}}>Match History ({matchHistory.length})</h2>
+      {matchHistory.map((m,i)=>(
+        <div key={m.id||i} className="match-hist-card">
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap',gap:'8px'}}>
+            <div>
+              <div style={{fontSize:'0.75rem',color:'#7a9dbf',marginBottom:'4px'}}>{m.date} &nbsp;|&nbsp; {m.maxOvers} overs</div>
+              <div style={{fontWeight:600,fontSize:'1rem'}}>{m.teamA.name} <span style={{color:'#d4a843'}}>vs</span> {m.teamB.name}</div>
+              <div style={{marginTop:'6px',fontSize:'0.9rem',color:'#b8cfe8'}}>
+                {m.teamA.name}: {m.teamA.score}/{m.teamA.wickets} &nbsp;|&nbsp; {m.teamB.name}: {m.teamB.score}/{m.teamB.wickets}
+              </div>
+            </div>
+            <div style={{textAlign:'right'}}>
+              {m.winner&&<div className="winner-badge">🏆 {m.winner}</div>}
+              <button className="btn btn-outline btn-sm" style={{marginTop:'6px'}} onClick={()=>setExpanded(expanded===i?null:i)}>
+                {expanded===i?'Hide':'Details'}
+              </button>
+            </div>
+          </div>
+          {expanded===i&&(
+            <div style={{marginTop:'16px',borderTop:'1px solid #1e3a5f',paddingTop:'16px'}}>
+              {[m.teamA,m.teamB].map((team,ti)=>{
+                const opponent=ti===0?m.teamB:m.teamA;
+                const oppBowlers=m.bowlers?Object.entries(m.bowlers).filter(([id])=>opponent.players.some(p=>String(p.id)===String(id))):[];
+                return(
+                <div key={team.name} style={{marginBottom:'16px'}}>
+                  <div style={{fontWeight:600,color:'#d4a843',marginBottom:'8px'}}>{team.name} — Batting</div>
+                  {team.players.map(p=>{
+                    const bs=m.batsmen&&(m.batsmen[p.id]||m.batsmen[String(p.id)]);
+                    if(!bs)return null;
+                    return(
+                      <div key={p.id} className="stat-row" style={{fontSize:'0.85rem'}}>
+                        <span className="stat-label">{p.name} <span style={{color:bs.out?'#e74c3c':'#27ae60',fontSize:'0.75rem'}}>({bs.out?(bs.howOut||'out'):'not out'})</span></span>
+                        <span className="stat-val">{bs.runs}({bs.balls}b) 1s:{bs.ones} 2s:{bs.twos} 4s:{bs.fours} 6s:{bs.sixes}</span>
+                      </div>
+                    );
+                  })}
+                  {oppBowlers.length>0&&(
+                    <div style={{marginTop:'10px'}}>
+                      <div style={{fontWeight:600,color:'#b8cfe8',marginBottom:'6px',fontSize:'0.85rem'}}>{opponent.name} — Bowling</div>
+                      {oppBowlers.map(([id,b])=>(
+                        <div key={id} className="stat-row" style={{fontSize:'0.85rem'}}>
+                          <span className="stat-label">{(opponent.players.find(p=>String(p.id)===String(id))||{name:'?'}).name}</span>
+                          <span className="stat-val">{b.overs}.{b.balls}ov | {b.runs}R | {b.wickets}W | Wd:{b.wides} NB:{b.noBalls}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AlertModal({alert}){
+  return(
+    <div className="alert-overlay">
+      <div className="alert-box">
+        <h2>{alert.title}</h2>
+        <p style={{whiteSpace:'pre-line'}}>{alert.msg}</p>
+        {alert.choices
+          ?<div style={{display:'flex',gap:'12px',justifyContent:'center',flexWrap:'wrap'}}>
+            {alert.choices.map(c=><button key={c.val} className="btn btn-gold btn-big" onClick={()=>alert.ok(c.val)}>{c.label}</button>)}
+          </div>
+          :<button className="btn btn-gold btn-big" onClick={alert.ok}>Continue</button>
+        }
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.render(<App/>,document.getElementById('root'));
+</script>
+</body>
+</html>
