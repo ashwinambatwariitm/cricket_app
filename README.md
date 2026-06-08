@@ -8,6 +8,8 @@ local storage, so your players, teams, and match history stay on your device.
 
 - Add players with name, role, and an optional photo with a built in cropper
 - Assign players to two teams and mark a captain for each
+- Name the club or tournament for the match; it appears on the scoreboard, the
+  result image, match history, and the Excel export
 - Choose the number of overs and run a toss to decide who bats first
 - Optional gully rule: the last batsman can bat alone (no non-striker), and the
   innings ends only when he is out

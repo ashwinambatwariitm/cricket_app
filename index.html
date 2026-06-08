@@ -171,7 +171,7 @@ function loadLS(key,def){try{const r=localStorage.getItem(key);return r?JSON.par
 const GDRIVE_CLIENT_ID='';
 const GDRIVE_FILE_NAME='crictrack-backup.json';
 // Everything the app stores. The backup bundles exactly these keys.
-const LS_KEYS=['ct_players','ct_teamA','ct_teamB','ct_capA','ct_capB','ct_overs','ct_solo','ct_match','ct_history'];
+const LS_KEYS=['ct_players','ct_teamA','ct_teamB','ct_capA','ct_capB','ct_overs','ct_solo','ct_club','ct_match','ct_history'];
 
 function buildBackup(){
   const data={};
@@ -192,6 +192,7 @@ function App(){
   const [captainB,setCaptainB]=useState(()=>loadLS('ct_capB',null));
   const [overs,setOvers]=useState(()=>loadLS('ct_overs',6));
   const [soloLastMan,setSoloLastMan]=useState(()=>loadLS('ct_solo',false));
+  const [clubName,setClubName]=useState(()=>loadLS('ct_club',''));
   const [match,setMatch]=useState(()=>loadLS('ct_match',null));
   const [matchHistory,setMatchHistory]=useState(()=>loadLS('ct_history',[]));
   const [addPlayer,setAddPlayer]=useState(false);
@@ -210,6 +211,7 @@ function App(){
   useEffect(()=>saveLS('ct_capB',captainB),[captainB]);
   useEffect(()=>saveLS('ct_overs',overs),[overs]);
   useEffect(()=>saveLS('ct_solo',soloLastMan),[soloLastMan]);
+  useEffect(()=>saveLS('ct_club',clubName),[clubName]);
   useEffect(()=>saveLS('ct_match',match),[match]);
   useEffect(()=>saveLS('ct_history',matchHistory),[matchHistory]);
 
@@ -238,7 +240,7 @@ function App(){
         date:new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}),
         teamA:{name:teamAName,players:[...teamA],captain:captainA,score:0,wickets:0,overs:0,balls:0,extras:0},
         teamB:{name:teamBName,players:[...teamB],captain:captainB,score:0,wickets:0,overs:0,balls:0,extras:0},
-        maxOvers:overs,soloLastMan,innings:1,battingTeam:v,bowlingTeam:v==='A'?'B':'A',
+        maxOvers:overs,soloLastMan,clubName:clubName.trim(),innings:1,battingTeam:v,bowlingTeam:v==='A'?'B':'A',
         striker:null,nonStriker:null,currentBowler:null,
         batsmen:{},bowlers:{},ballHistory:[],currentOverBalls:[],status:'live',winner:null
       };
@@ -314,7 +316,7 @@ function App(){
         ))}
       </div>
 
-      {tab==='setup'&&<SetupTab teamAName={teamAName} teamBName={teamBName} setTeamAName={setTeamAName} setTeamBName={setTeamBName} overs={overs} setOvers={setOvers} soloLastMan={soloLastMan} setSoloLastMan={setSoloLastMan} players={players} onStart={startMatch}/>}
+      {tab==='setup'&&<SetupTab teamAName={teamAName} teamBName={teamBName} setTeamAName={setTeamAName} setTeamBName={setTeamBName} overs={overs} setOvers={setOvers} soloLastMan={soloLastMan} setSoloLastMan={setSoloLastMan} clubName={clubName} setClubName={setClubName} players={players} onStart={startMatch}/>}
       {tab==='players'&&<PlayersTab players={players} addPlayer={addPlayer} setAddPlayer={setAddPlayer} newName={newName} setNewName={setNewName} newRole={newRole} setNewRole={setNewRole} newPhoto={newPhoto} setNewPhoto={setNewPhoto} photoRef={photoRef} handlePhoto={handlePhoto} savePlayer={savePlayer} removePlayer={removePlayer} cropSrc={cropSrc} setCropSrc={setCropSrc}/>}
       {tab==='teams'&&<TeamsTab players={players} teamAName={teamAName} teamBName={teamBName} captainA={captainA} captainB={captainB} setCaptainA={setCaptainA} setCaptainB={setCaptainB} assignTeam={assignTeam}/>}
       {tab==='match'&&<MatchTab match={match} selectBatsmen={selectBatsmen} selectBowler={selectBowler} recordBall={recordBall} getPlayerName={getPlayerName} getPlayerPhoto={getPlayerPhoto} undo={undo} canUndo={undoStack.length>0} changeBowler={changeBowler} changeBatsman={changeBatsman}/>}
@@ -325,11 +327,15 @@ function App(){
   );
 }
 
-function SetupTab({teamAName,teamBName,setTeamAName,setTeamBName,overs,setOvers,soloLastMan,setSoloLastMan,players,onStart}){
+function SetupTab({teamAName,teamBName,setTeamAName,setTeamBName,overs,setOvers,soloLastMan,setSoloLastMan,clubName,setClubName,players,onStart}){
   return(
     <div>
       <div className="card">
         <h2>Match Setup</h2>
+        <div className="field"><label className="label">Club / Tournament name</label>
+          <input className="input" placeholder="e.g. Hannover Cricket Club" value={clubName} onChange={e=>setClubName(e.target.value)}/>
+          <div style={{fontSize:'0.75rem',color:'#7a9dbf',marginTop:'4px'}}>Shown on the result image, history and exports.</div>
+        </div>
         <div className="grid2">
           <div className="field"><label className="label">Team 1 Name</label><input className="input" value={teamAName} onChange={e=>setTeamAName(e.target.value)}/></div>
           <div className="field"><label className="label">Team 2 Name</label><input className="input" value={teamBName} onChange={e=>setTeamBName(e.target.value)}/></div>
@@ -564,11 +570,12 @@ function MatchTab({match,selectBatsmen,selectBowler,recordBall,getPlayerName,get
 
   return(
     <div>
-      {match.status==='done'&&<div className="over-done-banner">🏆 Match Complete — Winner: {match.winner}</div>}
+      {match.status==='done'&&<div className="over-done-banner">{match.clubName?`${match.clubName} — `:''}🏆 Match Complete — Winner: {match.winner}</div>}
       {match.status==='done'&&<button className="btn btn-gold btn-big" style={{width:'100%',marginBottom:'16px'}} onClick={()=>setCeleb(true)}>🎉 Celebration image — Share result</button>}
       {celeb&&<CelebrationModal match={match} onClose={()=>setCeleb(false)}/>}
 
       <div className="scoreboard">
+        {match.clubName&&<div style={{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:'1.25rem',color:'#d4a843',marginBottom:'8px',letterSpacing:'0.5px'}}>{match.clubName}</div>}
         <div className="score-team">{battingTeam.name} — {match.innings===1?'1st Innings':`2nd Innings (Target: ${target})`}</div>
         <div className="score-big">{battingTeam.score}/{battingTeam.wickets}</div>
         <div className="score-sub">Overs: {battingTeam.overs}.{goodBalls} / {match.maxOvers} &nbsp;|&nbsp; Extras: {battingTeam.extras}</div>
@@ -819,6 +826,7 @@ function HistoryTab({matchHistory}){
         <div key={m.id||i} className="match-hist-card">
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap',gap:'8px'}}>
             <div>
+              {m.clubName&&<div style={{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:'1.05rem',color:'#d4a843',marginBottom:'2px'}}>{m.clubName}</div>}
               <div style={{fontSize:'0.75rem',color:'#7a9dbf',marginBottom:'4px'}}>{m.date} &nbsp;|&nbsp; {m.maxOvers} overs</div>
               <div style={{fontWeight:600,fontSize:'1rem'}}>{m.teamA.name} <span style={{color:'#d4a843'}}>vs</span> {m.teamB.name}</div>
               <div style={{marginTop:'6px',fontSize:'0.9rem',color:'#b8cfe8'}}>
@@ -1067,7 +1075,7 @@ function exportMatchesXLSX(history){
   const fmtDate=m=>{const d=m.id?new Date(m.id):null;return d?d.toLocaleDateString():(m.date||'');};
   const fmtTime=m=>{const d=m.id?new Date(m.id):null;return d?d.toLocaleTimeString():'';};
 
-  const summary=[['Match #','Date','Time','Team A','Team B','Team A Score','Team B Score','Winner','Result','Overs']];
+  const summary=[['Match #','Club / Tournament','Date','Time','Team A','Team B','Team A Score','Team B Score','Winner','Result','Overs']];
   const batting=[['Match #','Date','Team','Player','Runs','Balls','4s','6s','Status']];
   const bowling=[['Match #','Date','Team','Player','Overs','Runs','Wickets','Wides','No Balls']];
   const deliveries=[['Match #','Innings','Over.Ball','Bowler','Batsman','Outcome','Bat Runs','Extra','Wicket']];
@@ -1083,7 +1091,7 @@ function exportMatchesXLSX(history){
     });
     const res=computeResult(m);
     const result=(!m.winner)?'':(m.winner==='Tie'?'Match Tied':`${m.winner} ${res.margin}`);
-    summary.push([no,date,fmtTime(m),m.teamA.name,m.teamB.name,`${m.teamA.score}/${m.teamA.wickets}`,`${m.teamB.score}/${m.teamB.wickets}`,m.winner||'',result,m.maxOvers]);
+    summary.push([no,m.clubName||'',date,fmtTime(m),m.teamA.name,m.teamB.name,`${m.teamA.score}/${m.teamA.wickets}`,`${m.teamB.score}/${m.teamB.wickets}`,m.winner||'',result,m.maxOvers]);
     [m.teamA,m.teamB].forEach(team=>{
       team.players.forEach(p=>{
         const bs=m.batsmen&&(m.batsmen[p.id]||m.batsmen[String(p.id)]);
@@ -1152,8 +1160,18 @@ function drawCelebration(canvas,m){
   }
 
   ctx.textAlign='center';
-  ctx.fillStyle='#7a9dbf'; ctx.font='600 30px "DM Sans",sans-serif';
-  ctx.fillText('C R I C T R A C K',W/2,86);
+  // Club / tournament name as the bold headline (falls back to the app name).
+  const club=(m.clubName||'').trim();
+  if(club){
+    let cs=58; ctx.font=`900 ${cs}px "Playfair Display",Georgia,serif`;
+    while(ctx.measureText(club).width>W-120&&cs>26){cs-=2;ctx.font=`900 ${cs}px "Playfair Display",Georgia,serif`;}
+    ctx.fillStyle='#d4a843'; ctx.fillText(club,W/2,92);
+    ctx.strokeStyle='#1e3a5f'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(W/2-150,118); ctx.lineTo(W/2+150,118); ctx.stroke();
+    ctx.fillStyle='#7a9dbf'; ctx.font='600 22px "DM Sans",sans-serif'; ctx.fillText('CRICTRACK',W/2,146);
+  }else{
+    ctx.fillStyle='#7a9dbf'; ctx.font='600 30px "DM Sans",sans-serif';
+    ctx.fillText('C R I C T R A C K',W/2,92);
+  }
   ctx.font='128px serif'; ctx.fillText(res.winnerKey?'🏆':'🤝',W/2,300);
   ctx.fillStyle='#7a9dbf'; ctx.font='600 40px "DM Sans",sans-serif';
   ctx.fillText(res.winnerKey?'W I N N E R':'M A T C H   T I E D',W/2,388);
