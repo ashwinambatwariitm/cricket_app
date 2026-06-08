@@ -579,6 +579,19 @@ function MatchTab({match,selectBatsmen,selectBowler,recordBall,getPlayerName,get
         <div className="score-team">{battingTeam.name} — {match.innings===1?'1st Innings':`2nd Innings (Target: ${target})`}</div>
         <div className="score-big">{battingTeam.score}/{battingTeam.wickets}</div>
         <div className="score-sub">Overs: {battingTeam.overs}.{goodBalls} / {match.maxOvers} &nbsp;|&nbsp; Extras: {battingTeam.extras}</div>
+        {match.innings===2&&match.status==='live'&&(()=>{
+          const need=target-battingTeam.score;
+          const ballsLeft=match.maxOvers*6-(battingTeam.overs*6+goodBalls);
+          const rrr=ballsLeft>0?(need/(ballsLeft/6)).toFixed(2):'-';
+          return(
+            <div style={{marginTop:'10px',padding:'8px 12px',background:'#0a1628',border:'1px solid #d4a843',borderRadius:'10px',display:'inline-block'}}>
+              <div style={{fontSize:'1rem',color:'#e8dcc8',fontWeight:600}}>
+                Need <span style={{color:'#d4a843',fontWeight:700}}>{need>0?need:0}</span> run{need===1?'':'s'} from <span style={{color:'#d4a843',fontWeight:700}}>{ballsLeft}</span> ball{ballsLeft===1?'':'s'}
+              </div>
+              <div style={{fontSize:'0.78rem',color:'#7a9dbf',marginTop:'2px'}}>Required run rate: {rrr}</div>
+            </div>
+          );
+        })()}
         <div className="ball-row">
           {match.currentOverBalls.map((b,i)=><div key={i} className={`ball ${getBallClass(b)}`}>{getBallLabel(b)}</div>)}
           {Array(Math.max(0,6-goodBalls)).fill(0).map((_,i)=><div key={'e'+i} className="ball ball-0">·</div>)}
