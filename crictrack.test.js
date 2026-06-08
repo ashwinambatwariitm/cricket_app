@@ -252,6 +252,59 @@ group('4d. A dismissed batsman stays out and is not eligible again');
   ok(!eligible.some(p=>String(p.id)===String(outId)),'out batsman is not eligible to bat again');
 }
 
+// --- 4e. Ball history captures bowler, striker and over for each delivery ----
+group('4e. Per-delivery log (bowler / striker / over / dismissal)');
+{
+  let m=makeMatch(5),ctx={};
+  m=ensureSelections(m,ctx);
+  const bowler1=m.currentBowler, opener=m.striker;
+  m=recordBall(m,'run',1);   // 1 run, strike rotates
+  let last=m.ballHistory[m.ballHistory.length-1];
+  ok(String(last.bowler)===String(bowler1),'ball records the bowler who bowled it');
+  ok(String(last.striker)===String(opener),'ball records the striker who faced it (not the post-run swap)');
+  ok(last.over===0&&last.innings===1,'ball records over index and innings',`over ${last.over} inns ${last.innings}`);
+
+  m=recordBall(m,'noball',4);
+  last=m.ballHistory[m.ballHistory.length-1];
+  ok(last.type==='noball'&&last.batRuns===4&&last.extraRuns===1,'no-ball log splits 4 off bat + 1 extra',`${last.type} bat${last.batRuns} ex${last.extraRuns}`);
+
+  m=ensureSelections(m,ctx);
+  const wktStriker=m.striker;
+  m=recordBall(m,'wicket',0,{type:'bowled',outBatsman:wktStriker});
+  const wktBall=m.ballHistory.filter(b=>b.wicket).pop();
+  ok(/^b /.test(wktBall.howOut||''),`wicket ball logs howOut "${wktBall.howOut}"`);
+  ok(String(wktBall.outBatsman)===String(wktStriker),'wicket ball logs which batsman was out');
+
+  const inns1=m.ballHistory.filter(b=>b.innings===1);
+  ok(inns1.every(b=>b.bowler!=null),'every delivery has a bowler attached');
+}
+
+// --- 4f. "Batsmen crossed" puts the new batsman at the correct end ----------
+group('4f. Crossing on caught / run-out sets the right end');
+{
+  // Caught, NOT crossed: new batsman comes on strike (striker end empty).
+  let m=makeMatch(50),ctx={};
+  m=ensureSelections(m,ctx);
+  const nonStriker=m.nonStriker;
+  m=recordBall(m,'wicket',0,{type:'caught',fielder:m[`team${m.bowlingTeam}`].players[2].id,outBatsman:m.striker,crossed:false});
+  ok(m.striker===null&&m.nonStriker===nonStriker,'not crossed: new batsman fills the striker end',`s=${m.striker} n=${m.nonStriker}`);
+
+  // Caught, CROSSED: not-out batsman keeps strike, new batsman to non-striker end.
+  let m2=makeMatch(50),c2={};
+  m2=ensureSelections(m2,c2);
+  const s2=m2.striker, n2=m2.nonStriker;
+  m2=recordBall(m2,'wicket',0,{type:'caught',fielder:m2[`team${m2.bowlingTeam}`].players[2].id,outBatsman:s2,crossed:true});
+  ok(String(m2.striker)===String(n2)&&m2.nonStriker===null,'crossed: survivor keeps strike, new batsman fills non-striker end',`s=${m2.striker} n=${m2.nonStriker}`);
+  ok(m2.batsmen[s2].out===true,'the batsman who hit it is still the one out');
+
+  // Run-out of the NON-striker, crossed: survivor to non-striker end, new on strike.
+  let m3=makeMatch(50),c3={};
+  m3=ensureSelections(m3,c3);
+  const s3=m3.striker, n3=m3.nonStriker;
+  m3=recordBall(m3,'wicket',0,{type:'runout',fielder:m3[`team${m3.bowlingTeam}`].players[1].id,outBatsman:n3,crossed:true});
+  ok(m3.striker===null&&String(m3.nonStriker)===String(s3),'run-out non-striker crossed: new batsman on strike, survivor at non-striker end',`s=${m3.striker} n=${m3.nonStriker}`);
+}
+
 // --- 5. Every dismissal type -------------------------------------------------
 group('5. All dismissal types record correctly');
 {

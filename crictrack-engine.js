@@ -66,6 +66,8 @@
     if(!match||match.status==='done')return {match,event:null};
     let m=clone(match);
     const bt=m.battingTeam;
+    const facedBy=m.striker;          // who actually faced this delivery (before any strike swap)
+    const bowlerId=m.currentBowler;   // who bowled it
     const isExtra=type==='wide'||type==='noball';
     const d=dismissal||{};
     const hasDismissal=!!d.type||type==='wicket';
@@ -110,8 +112,15 @@
       [m.striker,m.nonStriker]=[m.nonStriker,m.striker];
     }
 
-    m.currentOverBalls=[...m.currentOverBalls,{type,runs,isExtra,wicket:hasDismissal}];
-    m.ballHistory=[...m.ballHistory,{type,runs,isExtra,wicket:hasDismissal}];
+    // Rich per-delivery record so we can show each bowler's ball-by-ball log later.
+    // The same object is stored in both arrays, so the dismissal block below can
+    // fill in howOut/outBatsman on it after the fact.
+    const legalBefore=m.currentOverBalls.filter(b=>!b.isExtra).length;
+    const ballRec={type,runs,isExtra,wicket:hasDismissal,batRuns,extraRuns,
+      innings:m.innings,team:bt,over:m[`team${bt}`].overs,legalBefore,
+      bowler:bowlerId,striker:facedBy,howOut:null,outBatsman:null};
+    m.currentOverBalls=[...m.currentOverBalls,ballRec];
+    m.ballHistory=[...m.ballHistory,ballRec];
 
     if(hasDismissal){
       const outId=(d.type==='runout'&&d.outBatsman)?d.outBatsman:m.striker;
@@ -127,11 +136,21 @@
       // A dismissal on a no-ball can only be a run-out; note it for clarity.
       if(type==='noball')howOut+=' (no-ball)';
       if(outId&&m.batsmen[outId]){m.batsmen[outId].out=true;m.batsmen[outId].howOut=howOut;}
+      ballRec.howOut=howOut; ballRec.outBatsman=outId;
       m[`team${bt}`].wickets+=1;
       if(m.currentBowler&&d.type&&d.type!=='runout')m.bowlers[m.currentBowler].wickets+=1;
       const alive=m[`team${bt}`].players.filter(p=>!m.batsmen[p.id]||!m.batsmen[p.id].out).length;
       if(alive<=1){return doInningsEnd(m);}
-      if(String(outId)===String(m.nonStriker))m.nonStriker=null;else m.striker=null;
+      // Decide which end the new batsman fills. If the batsmen had crossed while
+      // running (caught/run-out), the not-out batsman ends up at the other end,
+      // so the survivor keeps strike and the new batsman fills the opposite end.
+      const outIsNonStriker=String(outId)===String(m.nonStriker);
+      if(d.crossed){
+        if(outIsNonStriker){m.nonStriker=m.striker;m.striker=null;}
+        else{m.striker=m.nonStriker;m.nonStriker=null;}
+      }else{
+        if(outIsNonStriker)m.nonStriker=null;else m.striker=null;
+      }
     }
 
     if(m.innings===2){

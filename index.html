@@ -68,6 +68,7 @@ h1,h2,h3{font-family:'Playfair Display',serif}
 .ball-wide{background:#8e44ad;color:#fff;border-color:#9b59b6}
 .ball-noball{background:#e74c3c;color:#fff;border-color:#c0392b}
 .ball-dot{background:#1e3a5f;color:#7a9dbf;border-color:#2a4a6f}
+.ball-wk{background:#e74c3c;color:#fff;border-color:#c0392b}
 .run-buttons{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:16px 0}
 .run-btn{padding:16px 8px;border-radius:12px;border:2px solid;font-size:1.1rem;font-weight:700;cursor:pointer;font-family:'Playfair Display',serif;transition:all 0.15s;background:transparent}
 .run-btn:active{transform:scale(0.95)}
@@ -492,6 +493,7 @@ function MatchTab({match,selectBatsmen,selectBowler,recordBall,getPlayerName,get
   const [wkt,setWkt]=useState(null);
   const [extra,setExtra]=useState(null);
   const [celeb,setCeleb]=useState(false);
+  const [openBowler,setOpenBowler]=useState(null);
   if(!match)return<div className="card"><div className="notice">No active match. Go to Setup and start a match!</div></div>;
   const bt=match.battingTeam;
   const bwt=match.bowlingTeam;
@@ -652,9 +654,12 @@ function MatchTab({match,selectBatsmen,selectBowler,recordBall,getPlayerName,get
         <hr className="section-divider"/>
         <h3 style={{marginBottom:'10px'}}>Bowling — {bowlingTeam.name}</h3>
         {Object.entries(match.bowlers).filter(([id])=>bowlingTeam.players.some(p=>String(p.id)===String(id))).map(([id,b])=>(
-          <div key={id} className="stat-row">
-            <span className="stat-label">{getPlayerName(id)}</span>
-            <span className="stat-val">{b.overs}.{b.balls}ov | {b.runs}R | {b.wickets}W | Wd:{b.wides} NB:{b.noBalls}</span>
+          <div key={id}>
+            <div className="stat-row" style={{cursor:'pointer'}} onClick={()=>setOpenBowler(openBowler===id?null:id)}>
+              <span className="stat-label">{getPlayerName(id)} <span style={{color:'#7a9dbf',fontSize:'0.7rem'}}>{openBowler===id?'▲ hide balls':'▾ balls'}</span></span>
+              <span className="stat-val">{b.overs}.{b.balls}ov | {b.runs}R | {b.wickets}W | Wd:{b.wides} NB:{b.noBalls}</span>
+            </div>
+            {openBowler===id&&<BowlerBalls match={match} bowlerId={id}/>}
           </div>
         ))}
       </div>
@@ -687,12 +692,22 @@ function MatchTab({match,selectBatsmen,selectBowler,recordBall,getPlayerName,get
                 </div>
               </div>
             )}
+            {(wkt.type==='caught'||wkt.type==='runout')&&(
+              <div style={{marginBottom:'14px'}}>
+                <label className="label">Did the batsmen cross while running?</label>
+                <div style={{display:'flex',gap:'8px',justifyContent:'center'}}>
+                  <button className={`btn btn-sm ${!wkt.crossed?'btn-gold':'btn-outline'}`} onClick={()=>setWkt({...wkt,crossed:false})}>No</button>
+                  <button className={`btn btn-sm ${wkt.crossed?'btn-gold':'btn-outline'}`} onClick={()=>setWkt({...wkt,crossed:true})}>Yes, crossed</button>
+                </div>
+                <div style={{fontSize:'0.72rem',color:'#7a9dbf',marginTop:'6px',textAlign:'center'}}>If they crossed, the not-out batsman keeps strike.</div>
+              </div>
+            )}
             {(()=>{
               const needsFielder=wkt.type==='caught'||wkt.type==='stumped'||wkt.type==='runout';
               const canConfirm=!!wkt.type&&(!needsFielder||!!wkt.fielder);
               return(
                 <div style={{display:'flex',gap:'10px',justifyContent:'center',marginTop:'8px'}}>
-                  <button className="btn btn-danger btn-big" style={{opacity:canConfirm?1:0.4,cursor:canConfirm?'pointer':'not-allowed'}} disabled={!canConfirm} onClick={()=>{recordBall('wicket',0,{type:wkt.type,fielder:wkt.fielder,outBatsman:wkt.outBatsman});setWkt(null);}}>Confirm Out</button>
+                  <button className="btn btn-danger btn-big" style={{opacity:canConfirm?1:0.4,cursor:canConfirm?'pointer':'not-allowed'}} disabled={!canConfirm} onClick={()=>{recordBall('wicket',0,{type:wkt.type,fielder:wkt.fielder,outBatsman:wkt.outBatsman,crossed:!!wkt.crossed});setWkt(null);}}>Confirm Out</button>
                   <button className="btn btn-outline btn-big" onClick={()=>setWkt(null)}>Cancel</button>
                 </div>
               );
@@ -736,13 +751,22 @@ function MatchTab({match,selectBatsmen,selectBowler,recordBall,getPlayerName,get
                 </div>
               </div>
             )}
+            {extra.dType==='runout'&&(
+              <div style={{marginBottom:'14px'}}>
+                <label className="label">Did the batsmen cross while running?</label>
+                <div style={{display:'flex',gap:'8px',justifyContent:'center'}}>
+                  <button className={`btn btn-sm ${!extra.crossed?'btn-gold':'btn-outline'}`} onClick={()=>setExtra({...extra,crossed:false})}>No</button>
+                  <button className={`btn btn-sm ${extra.crossed?'btn-gold':'btn-outline'}`} onClick={()=>setExtra({...extra,crossed:true})}>Yes, crossed</button>
+                </div>
+              </div>
+            )}
             {(()=>{
               const canConfirm=!extra.dType||!!extra.fielder;
               return(
                 <div style={{display:'flex',gap:'10px',justifyContent:'center',marginTop:'8px'}}>
                   <button className="btn btn-gold btn-big" style={{opacity:canConfirm?1:0.4,cursor:canConfirm?'pointer':'not-allowed'}} disabled={!canConfirm}
                     onClick={()=>{
-                      const dismissal=extra.dType?{type:extra.dType,fielder:extra.fielder,outBatsman:extra.dType==='stumped'?match.striker:extra.outBatsman}:null;
+                      const dismissal=extra.dType?{type:extra.dType,fielder:extra.fielder,outBatsman:extra.dType==='stumped'?match.striker:extra.outBatsman,crossed:!!extra.crossed}:null;
                       recordBall(extra.kind,extra.runs,dismissal);setExtra(null);
                     }}>Confirm</button>
                   <button className="btn btn-outline btn-big" onClick={()=>setExtra(null)}>Cancel</button>
@@ -759,6 +783,7 @@ function MatchTab({match,selectBatsmen,selectBowler,recordBall,getPlayerName,get
 function HistoryTab({matchHistory}){
   const [expanded,setExpanded]=useState(null);
   const [celebMatch,setCelebMatch]=useState(null);
+  const [openBowler,setOpenBowler]=useState(null);
   if(matchHistory.length===0)return<div className="card"><div className="notice">No match history yet. Play some matches!</div></div>;
   return(
     <div>
@@ -807,12 +832,18 @@ function HistoryTab({matchHistory}){
                   {oppBowlers.length>0&&(
                     <div style={{marginTop:'10px'}}>
                       <div style={{fontWeight:600,color:'#b8cfe8',marginBottom:'6px',fontSize:'0.85rem'}}>{opponent.name} — Bowling</div>
-                      {oppBowlers.map(([id,b])=>(
-                        <div key={id} className="stat-row" style={{fontSize:'0.85rem'}}>
-                          <span className="stat-label">{(opponent.players.find(p=>String(p.id)===String(id))||{name:'?'}).name}</span>
-                          <span className="stat-val">{b.overs}.{b.balls}ov | {b.runs}R | {b.wickets}W | Wd:{b.wides} NB:{b.noBalls}</span>
+                      {oppBowlers.map(([id,b])=>{
+                        const key=`${i}:${id}`;
+                        return(
+                        <div key={id}>
+                          <div className="stat-row" style={{fontSize:'0.85rem',cursor:'pointer'}} onClick={()=>setOpenBowler(openBowler===key?null:key)}>
+                            <span className="stat-label">{(opponent.players.find(p=>String(p.id)===String(id))||{name:'?'}).name} <span style={{color:'#7a9dbf',fontSize:'0.7rem'}}>{openBowler===key?'▲':'▾ balls'}</span></span>
+                            <span className="stat-val">{b.overs}.{b.balls}ov | {b.runs}R | {b.wickets}W | Wd:{b.wides} NB:{b.noBalls}</span>
+                          </div>
+                          {openBowler===key&&<BowlerBalls match={m} bowlerId={id}/>}
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -975,6 +1006,34 @@ function BackupTab(){
   );
 }
 
+// ===== Per-bowler ball-by-ball view =====
+function ballChip(b){
+  if(b.type==='wide')return {cls:'ball-wide',label:b.wicket?'Wd+W':'Wd'};
+  if(b.type==='noball')return {cls:'ball-noball',label:b.wicket?'NB+W':'NB'};
+  if(b.wicket)return {cls:'ball-wk',label:(b.runs?`${b.runs}+W`:'W')};
+  if(b.runs===4)return {cls:'ball-4',label:'4'};
+  if(b.runs===6)return {cls:'ball-6',label:'6'};
+  if(b.runs===0)return {cls:'ball-dot',label:'·'};
+  return {cls:'ball-1',label:String(b.runs)};
+}
+// Shows one row per over for a single bowler, drawn from the match ball history.
+function BowlerBalls({match,bowlerId}){
+  const balls=(match.ballHistory||[]).filter(b=>String(b.bowler)===String(bowlerId));
+  if(!balls.length)return <div style={{fontSize:'0.75rem',color:'#7a9dbf',padding:'4px 0 10px'}}>No ball-by-ball data for this bowler (older match saved before this feature).</div>;
+  const overs={};
+  balls.forEach(b=>{const k=(b.over!=null?b.over:0);(overs[k]=overs[k]||[]).push(b);});
+  return(
+    <div style={{padding:'6px 0 12px'}}>
+      {Object.keys(overs).sort((a,b)=>a-b).map(k=>(
+        <div key={k} style={{display:'flex',alignItems:'center',gap:'5px',flexWrap:'wrap',marginBottom:'6px'}}>
+          <span style={{fontSize:'0.72rem',color:'#7a9dbf',minWidth:'52px'}}>Over {Number(k)+1}</span>
+          {overs[k].map((b,i)=>{const c=ballChip(b);return <div key={i} className={`ball ${c.cls}`} title={b.howOut||(b.type==='noball'?'no-ball':b.type==='wide'?'wide':`${b.batRuns} run(s)`)}>{c.label}</div>;})}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ===== Export match history to Excel (.xlsx) =====
 function exportMatchesXLSX(history){
   if(!window.XLSX){alert('The Excel library has not loaded yet. Check your internet connection and try again.');return;}
@@ -987,9 +1046,17 @@ function exportMatchesXLSX(history){
   const summary=[['Match #','Date','Time','Team A','Team B','Team A Score','Team B Score','Winner','Result','Overs']];
   const batting=[['Match #','Date','Team','Player','Runs','Balls','4s','6s','Status']];
   const bowling=[['Match #','Date','Team','Player','Overs','Runs','Wickets','Wides','No Balls']];
+  const deliveries=[['Match #','Innings','Over.Ball','Bowler','Batsman','Outcome','Bat Runs','Extra','Wicket']];
 
   matches.forEach((m,idx)=>{
     const no=idx+1, date=fmtDate(m);
+    const nameIn=id=>{const all=[...m.teamA.players,...m.teamB.players];const f=all.find(p=>String(p.id)===String(id));return f?f.name:'';};
+    (m.ballHistory||[]).forEach(b=>{
+      if(b.bowler==null&&b.striker==null)return; // older match without per-ball data
+      const overBall=`${(b.over!=null?b.over:0)+1}.${(b.legalBefore!=null?b.legalBefore:0)+1}${b.isExtra?' (x)':''}`;
+      const outcome=b.type==='wide'?'Wide':b.type==='noball'?'No ball':(b.wicket?'Wicket':(b.batRuns!=null?`${b.batRuns} run(s)`:`${b.runs} run(s)`));
+      deliveries.push([no,b.innings||'',overBall,nameIn(b.bowler),nameIn(b.striker),outcome,b.batRuns!=null?b.batRuns:b.runs,b.extraRuns!=null?b.extraRuns:0,b.howOut||'']);
+    });
     const res=computeResult(m);
     const result=(!m.winner)?'':(m.winner==='Tie'?'Match Tied':`${m.winner} ${res.margin}`);
     summary.push([no,date,fmtTime(m),m.teamA.name,m.teamB.name,`${m.teamA.score}/${m.teamA.wickets}`,`${m.teamB.score}/${m.teamB.wickets}`,m.winner||'',result,m.maxOvers]);
@@ -1010,6 +1077,7 @@ function exportMatchesXLSX(history){
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(summary),'Matches');
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(batting),'Batting');
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(bowling),'Bowling');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(deliveries),'Deliveries');
   XLSX.writeFile(wb,`crictrack-matches-${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
