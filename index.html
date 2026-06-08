@@ -281,12 +281,14 @@ function App(){
   const recordBall=(type,runs=0,dismissal=null)=>{
     if(!match||match.status==='done')return;
     const {match:next,event}=CricEngine.recordBall(match,type,runs,dismissal);
+    if(!next.startTime)next.startTime=Date.now();   // stamped on the very first delivery
     if(event&&event.type==='inningsBreak'){
       // Defer applying the 2nd innings until the scorer taps Continue.
       setAlert({title:event.title,msg:event.msg,ok:()=>{applyMatch(next);setAlert(null);}});
       return;
     }
     if(event&&event.type==='matchOver'){
+      next.endTime=Date.now();                       // stamped when the match finishes
       applyMatch(next);
       setMatchHistory(prev=>[next,...prev]);
       setAlert({title:event.title,msg:event.msg,ok:()=>{setTab('history');setAlert(null);}});
@@ -841,6 +843,13 @@ function HistoryTab({matchHistory}){
             <div>
               {m.clubName&&<div style={{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:'1.05rem',color:'#d4a843',marginBottom:'2px'}}>{m.clubName}</div>}
               <div style={{fontSize:'0.75rem',color:'#7a9dbf',marginBottom:'4px'}}>{m.date} &nbsp;|&nbsp; {m.maxOvers} overs</div>
+              {(m.startTime||m.endTime)&&(
+                <div style={{fontSize:'0.72rem',color:'#7a9dbf',marginBottom:'4px'}}>
+                  {m.startTime?`Start ${new Date(m.startTime).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`:''}
+                  {m.endTime?` → End ${new Date(m.endTime).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`:''}
+                  {m.startTime&&m.endTime?` (${Math.max(1,Math.round((m.endTime-m.startTime)/60000))} min)`:''}
+                </div>
+              )}
               <div style={{fontWeight:600,fontSize:'1rem'}}>{m.teamA.name} <span style={{color:'#d4a843'}}>vs</span> {m.teamB.name}</div>
               <div style={{marginTop:'6px',fontSize:'0.9rem',color:'#b8cfe8'}}>
                 {m.teamA.name}: {m.teamA.score}/{m.teamA.wickets} &nbsp;|&nbsp; {m.teamB.name}: {m.teamB.score}/{m.teamB.wickets}
@@ -1086,9 +1095,9 @@ function exportMatchesXLSX(history){
   const XLSX=window.XLSX;
   const matches=[...history].reverse(); // history is newest-first; number oldest as match 1
   const fmtDate=m=>{const d=m.id?new Date(m.id):null;return d?d.toLocaleDateString():(m.date||'');};
-  const fmtTime=m=>{const d=m.id?new Date(m.id):null;return d?d.toLocaleTimeString():'';};
+  const fmtTS=ts=>ts?new Date(ts).toLocaleTimeString():'';
 
-  const summary=[['Match #','Club / Tournament','Date','Time','Team A','Team B','Team A Score','Team B Score','Winner','Result','Overs']];
+  const summary=[['Match #','Club / Tournament','Date','Start Time','End Time','Team A','Team B','Team A Score','Team B Score','Winner','Result','Overs']];
   const batting=[['Match #','Date','Team','Player','Runs','Balls','4s','6s','Status']];
   const bowling=[['Match #','Date','Team','Player','Overs','Runs','Wickets','Wides','No Balls']];
   const deliveries=[['Match #','Innings','Over.Ball','Bowler','Batsman','Outcome','Bat Runs','Extra','Wicket']];
@@ -1104,7 +1113,7 @@ function exportMatchesXLSX(history){
     });
     const res=computeResult(m);
     const result=(!m.winner)?'':(m.winner==='Tie'?'Match Tied':`${m.winner} ${res.margin}`);
-    summary.push([no,m.clubName||'',date,fmtTime(m),m.teamA.name,m.teamB.name,`${m.teamA.score}/${m.teamA.wickets}`,`${m.teamB.score}/${m.teamB.wickets}`,m.winner||'',result,m.maxOvers]);
+    summary.push([no,m.clubName||'',date,fmtTS(m.startTime),fmtTS(m.endTime),m.teamA.name,m.teamB.name,`${m.teamA.score}/${m.teamA.wickets}`,`${m.teamB.score}/${m.teamB.wickets}`,m.winner||'',result,m.maxOvers]);
     [m.teamA,m.teamB].forEach(team=>{
       team.players.forEach(p=>{
         const bs=m.batsmen&&(m.batsmen[p.id]||m.batsmen[String(p.id)]);
