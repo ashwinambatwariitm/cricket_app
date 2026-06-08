@@ -7,11 +7,15 @@
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'DM Sans',sans-serif;background:#0a1628;color:#e8dcc8;min-height:100vh}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{font-family:'DM Sans',sans-serif;background:#0a1628;color:#e8dcc8;min-height:100vh;overflow-x:hidden;-webkit-tap-highlight-color:transparent}
+img,canvas{max-width:100%}
 .app{max-width:900px;margin:0 auto;padding:16px}
 h1,h2,h3{font-family:'Playfair Display',serif}
 .logo{text-align:center;padding:20px 0 12px;border-bottom:1px solid #1e3a5f;margin-bottom:20px}
@@ -116,6 +120,37 @@ h1,h2,h3{font-family:'Playfair Display',serif}
 .alert-box{background:#0f2040;border:2px solid #d4a843;border-radius:20px;padding:32px;max-width:400px;width:90%;text-align:center}
 .alert-box h2{color:#d4a843;margin-bottom:16px}
 .alert-box p{color:#b8cfe8;margin-bottom:24px;line-height:1.6}
+.alert-overlay{padding:12px;overflow-y:auto}
+.alert-box{max-height:92vh;overflow-y:auto}
+.stat-row{gap:10px}
+.stat-label{min-width:0;overflow-wrap:anywhere}
+.stat-val{white-space:nowrap;flex-shrink:0}
+
+/* ---- Phone screens ---- */
+@media (max-width:600px){
+  .app{padding:10px}
+  .logo{padding:14px 0 10px;margin-bottom:14px}
+  .logo h1{font-size:1.6rem}
+  .tabs{gap:6px;margin-bottom:14px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+  .tab{padding:7px 12px;font-size:0.8rem;white-space:nowrap;flex:0 0 auto}
+  .card{padding:14px;border-radius:14px;margin-bottom:12px}
+  .input{font-size:16px}      /* >=16px stops iOS auto-zoom on focus */
+  select.input{font-size:16px}
+  .score-big{font-size:2.4rem}
+  .scoreboard{padding:18px;border-radius:16px}
+  .run-buttons{gap:6px}
+  .run-btn{padding:14px 4px;font-size:1rem}
+  .btn-big{padding:14px 18px;font-size:1rem}
+  .ball{width:30px;height:30px;font-size:0.7rem}
+  .players-list{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px}
+  .alert-box{padding:20px;border-radius:16px}
+  .alert-box h2{font-size:1.2rem}
+}
+/* Very small phones: stack two-column form fields */
+@media (max-width:380px){
+  .grid2{grid-template-columns:1fr}
+  .run-btn{font-size:0.92rem;padding:12px 2px}
+}
 </style>
 </head>
 <body>
@@ -126,6 +161,26 @@ const {useState,useEffect,useRef}=React;
 
 function saveLS(key,val){try{localStorage.setItem(key,JSON.stringify(val));}catch{}}
 function loadLS(key,def){try{const r=localStorage.getItem(key);return r?JSON.parse(r):def;}catch{return def;}}
+
+// ===== Backup configuration =====
+// To enable the "Upload to Google Drive" button, create an OAuth client ID in
+// Google Cloud (type: Web application) with your hosted site's URL added as an
+// Authorized JavaScript origin, then paste the client ID below. Leave it empty
+// to use only the Download/Restore file backup (which always works).
+const GDRIVE_CLIENT_ID='';
+const GDRIVE_FILE_NAME='crictrack-backup.json';
+// Everything the app stores. The backup bundles exactly these keys.
+const LS_KEYS=['ct_players','ct_teamA','ct_teamB','ct_capA','ct_capB','ct_overs','ct_match','ct_history'];
+
+function buildBackup(){
+  const data={};
+  LS_KEYS.forEach(k=>{data[k]=loadLS(k,null);});
+  return {app:'CricTrack',version:1,savedAt:new Date().toISOString(),data};
+}
+function restoreBackup(obj){
+  if(!obj||obj.app!=='CricTrack'||!obj.data)throw new Error('This file is not a CricTrack backup.');
+  LS_KEYS.forEach(k=>{if(k in obj.data && obj.data[k]!==null)saveLS(k,obj.data[k]);});
+}
 
 function App(){
   const [tab,setTab]=useState('setup');
@@ -251,7 +306,7 @@ function App(){
     <div className="app">
       <div className="logo"><h1>🏏 CricTrack</h1><p>Match Manager & Stats</p></div>
       <div className="tabs">
-        {[['setup','⚙ Setup'],['players','👤 Players'],['teams','🏟 Teams'],['match','🏏 Live'],['history','📋 History']].map(([id,label])=>(
+        {[['setup','⚙ Setup'],['players','👤 Players'],['teams','🏟 Teams'],['match','🏏 Live'],['history','📋 History'],['backup','💾 Backup']].map(([id,label])=>(
           <button key={id} className={`tab${tab===id?' active':''}`} onClick={()=>setTab(id)}>{label}</button>
         ))}
       </div>
@@ -261,6 +316,7 @@ function App(){
       {tab==='teams'&&<TeamsTab players={players} teamAName={teamAName} teamBName={teamBName} captainA={captainA} captainB={captainB} setCaptainA={setCaptainA} setCaptainB={setCaptainB} assignTeam={assignTeam}/>}
       {tab==='match'&&<MatchTab match={match} selectBatsmen={selectBatsmen} selectBowler={selectBowler} recordBall={recordBall} getPlayerName={getPlayerName} getPlayerPhoto={getPlayerPhoto} undo={undo} canUndo={undoStack.length>0} changeBowler={changeBowler} changeBatsman={changeBatsman}/>}
       {tab==='history'&&<HistoryTab matchHistory={matchHistory}/>}
+      {tab==='backup'&&<BackupTab/>}
       {alert&&<AlertModal alert={alert}/>}
     </div>
   );
@@ -292,7 +348,8 @@ function SetupTab({teamAName,teamBName,setTeamAName,setTeamBName,overs,setOvers,
 }
 
 function PhotoCropper({src,onCancel,onCrop}){
-  const S=260, OUT=400;
+  // Preview shrinks to fit narrow phones; output stays high-res regardless.
+  const S=Math.min(260,(typeof window!=='undefined'?window.innerWidth:360)-96), OUT=400;
   const [zoom,setZoom]=useState(1);
   const [px,setPx]=useState(0.5);
   const [py,setPy]=useState(0.5);
@@ -340,6 +397,7 @@ function PhotoCropper({src,onCancel,onCrop}){
 }
 
 function PlayersTab({players,addPlayer,setAddPlayer,newName,setNewName,newRole,setNewRole,newPhoto,setNewPhoto,photoRef,handlePhoto,savePlayer,removePlayer,cropSrc,setCropSrc}){
+  const camRef=useRef();
   return(
     <div>
       {cropSrc&&<PhotoCropper src={cropSrc} onCancel={()=>setCropSrc(null)} onCrop={d=>{setNewPhoto(d);setCropSrc(null);}}/>}
@@ -351,10 +409,15 @@ function PlayersTab({players,addPlayer,setAddPlayer,newName,setNewName,newRole,s
         {addPlayer&&(
           <div style={{background:'#0a1628',border:'1px solid #d4a843',borderRadius:'12px',padding:'16px',marginBottom:'16px'}}>
             <div style={{display:'flex',alignItems:'flex-start',gap:'16px',marginBottom:'14px'}}>
-              <div className="photo-upload" onClick={()=>photoRef.current.click()}>
-                {newPhoto?<img src={newPhoto} alt=""/>:<span style={{fontSize:'1.5rem'}}>📷</span>}
+              <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'6px',flexShrink:0}}>
+                <div className="photo-upload" onClick={()=>photoRef.current.click()}>
+                  {newPhoto?<img src={newPhoto} alt=""/>:<span style={{fontSize:'1.5rem'}}>📷</span>}
+                </div>
+                <button type="button" className="btn btn-sm btn-outline" style={{width:'92px'}} onClick={()=>camRef.current.click()}>📷 Camera</button>
+                <button type="button" className="btn btn-sm btn-outline" style={{width:'92px'}} onClick={()=>photoRef.current.click()}>🖼 Gallery</button>
               </div>
               <input type="file" ref={photoRef} accept="image/*" style={{display:'none'}} onChange={handlePhoto}/>
+              <input type="file" ref={camRef} accept="image/*" capture="environment" style={{display:'none'}} onChange={handlePhoto}/>
               <div style={{flex:1}}>
                 <div className="field"><label className="label">Name</label><input className="input" placeholder="Player name" value={newName} onChange={e=>setNewName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&savePlayer()}/></div>
                 <div className="field"><label className="label">Role</label>
@@ -428,6 +491,7 @@ function TeamsTab({players,teamAName,teamBName,captainA,captainB,setCaptainA,set
 function MatchTab({match,selectBatsmen,selectBowler,recordBall,getPlayerName,getPlayerPhoto,undo,canUndo,changeBowler,changeBatsman}){
   const [wkt,setWkt]=useState(null);
   const [extra,setExtra]=useState(null);
+  const [celeb,setCeleb]=useState(false);
   if(!match)return<div className="card"><div className="notice">No active match. Go to Setup and start a match!</div></div>;
   const bt=match.battingTeam;
   const bwt=match.bowlingTeam;
@@ -475,6 +539,8 @@ function MatchTab({match,selectBatsmen,selectBowler,recordBall,getPlayerName,get
   return(
     <div>
       {match.status==='done'&&<div className="over-done-banner">🏆 Match Complete — Winner: {match.winner}</div>}
+      {match.status==='done'&&<button className="btn btn-gold btn-big" style={{width:'100%',marginBottom:'16px'}} onClick={()=>setCeleb(true)}>🎉 Celebration image — Share result</button>}
+      {celeb&&<CelebrationModal match={match} onClose={()=>setCeleb(false)}/>}
 
       <div className="scoreboard">
         <div className="score-team">{battingTeam.name} — {match.innings===1?'1st Innings':`2nd Innings (Target: ${target})`}</div>
@@ -692,10 +758,14 @@ function MatchTab({match,selectBatsmen,selectBowler,recordBall,getPlayerName,get
 
 function HistoryTab({matchHistory}){
   const [expanded,setExpanded]=useState(null);
+  const [celebMatch,setCelebMatch]=useState(null);
   if(matchHistory.length===0)return<div className="card"><div className="notice">No match history yet. Play some matches!</div></div>;
   return(
     <div>
-      <h2 style={{color:'#d4a843',marginBottom:'16px',fontFamily:"'Playfair Display',serif"}}>Match History ({matchHistory.length})</h2>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:'10px',flexWrap:'wrap',marginBottom:'16px'}}>
+        <h2 style={{color:'#d4a843',margin:0,fontFamily:"'Playfair Display',serif"}}>Match History ({matchHistory.length})</h2>
+        <button className="btn btn-gold btn-sm" onClick={()=>exportMatchesXLSX(matchHistory)}>⬇ Export to Excel</button>
+      </div>
       {matchHistory.map((m,i)=>(
         <div key={m.id||i} className="match-hist-card">
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap',gap:'8px'}}>
@@ -708,9 +778,12 @@ function HistoryTab({matchHistory}){
             </div>
             <div style={{textAlign:'right'}}>
               {m.winner&&<div className="winner-badge">🏆 {m.winner}</div>}
-              <button className="btn btn-outline btn-sm" style={{marginTop:'6px'}} onClick={()=>setExpanded(expanded===i?null:i)}>
-                {expanded===i?'Hide':'Details'}
-              </button>
+              <div style={{display:'flex',gap:'6px',justifyContent:'flex-end',flexWrap:'wrap',marginTop:'6px'}}>
+                <button className="btn btn-gold btn-sm" onClick={()=>setCelebMatch(m)}>🎉 Share</button>
+                <button className="btn btn-outline btn-sm" onClick={()=>setExpanded(expanded===i?null:i)}>
+                  {expanded===i?'Hide':'Details'}
+                </button>
+              </div>
             </div>
           </div>
           {expanded===i&&(
@@ -749,6 +822,325 @@ function HistoryTab({matchHistory}){
           )}
         </div>
       ))}
+      {celebMatch&&<CelebrationModal match={celebMatch} onClose={()=>setCelebMatch(null)}/>}
+    </div>
+  );
+}
+
+function BackupTab(){
+  const [status,setStatus]=useState('');
+  const [busy,setBusy]=useState(false);
+  const tokenRef=useRef(null);          // current Google access token
+  const clientRef=useRef(null);         // GIS token client
+  const pendingRef=useRef(null);        // resolver for the token request
+  const fileRef=useRef();
+
+  const lastBackup=loadLS('ct_last_backup',null);
+
+  // ---- Download / Restore a file (works everywhere, no setup) ----
+  const downloadBackup=()=>{
+    const text=JSON.stringify(buildBackup(),null,2);
+    const blob=new Blob([text],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    const stamp=new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
+    a.href=url;a.download=`crictrack-backup-${stamp}.json`;
+    document.body.appendChild(a);a.click();a.remove();
+    URL.revokeObjectURL(url);
+    saveLS('ct_last_backup',new Date().toISOString());
+    setStatus('Backup file downloaded. Save it to your Google Drive folder to keep it safe.');
+  };
+  const onRestoreFile=e=>{
+    const f=e.target.files[0];if(!f)return;
+    const r=new FileReader();
+    r.onload=ev=>{
+      try{
+        const obj=JSON.parse(ev.target.result);
+        if(confirm('Restore this backup? It will overwrite the players, teams and matches currently on this device.')){
+          restoreBackup(obj);
+          alert('Backup restored. The app will now reload.');
+          location.reload();
+        }
+      }catch(err){setStatus('Could not restore: '+(err.message||err));}
+    };
+    r.readAsText(f);
+    e.target.value='';
+  };
+
+  // ---- Google Drive (OAuth) ----
+  const initClient=()=>{
+    if(clientRef.current)return true;
+    if(!GDRIVE_CLIENT_ID)return false;
+    if(!(window.google&&google.accounts&&google.accounts.oauth2))return false;
+    clientRef.current=google.accounts.oauth2.initTokenClient({
+      client_id:GDRIVE_CLIENT_ID,
+      scope:'https://www.googleapis.com/auth/drive.file',
+      callback:resp=>{
+        if(resp&&resp.access_token){tokenRef.current=resp.access_token;pendingRef.current&&pendingRef.current.resolve(resp.access_token);}
+        else pendingRef.current&&pendingRef.current.reject(new Error('Google sign-in was cancelled.'));
+        pendingRef.current=null;
+      }
+    });
+    return true;
+  };
+  const getToken=()=>new Promise((resolve,reject)=>{
+    if(tokenRef.current){resolve(tokenRef.current);return;}
+    if(!initClient()){
+      reject(new Error(GDRIVE_CLIENT_ID?'Google library not loaded yet. Check your connection and try again.':'Google Drive is not set up. Add your GDRIVE_CLIENT_ID in index.html to enable it.'));
+      return;
+    }
+    pendingRef.current={resolve,reject};
+    clientRef.current.requestAccessToken();
+  });
+  const findFileId=async tk=>{
+    let id=loadLS('ct_drive_file_id',null);
+    if(id)return id;
+    const q=encodeURIComponent(`name='${GDRIVE_FILE_NAME}' and trashed=false`);
+    const res=await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name)`,{headers:{Authorization:`Bearer ${tk}`}});
+    const j=await res.json();
+    if(j.files&&j.files.length){saveLS('ct_drive_file_id',j.files[0].id);return j.files[0].id;}
+    return null;
+  };
+  const uploadToDrive=async()=>{
+    setBusy(true);
+    try{
+      setStatus('Connecting to Google Drive...');
+      const tk=await getToken();
+      setStatus('Uploading backup...');
+      const content=JSON.stringify(buildBackup(),null,2);
+      const fileId=await findFileId(tk);
+      const metadata={name:GDRIVE_FILE_NAME,mimeType:'application/json'};
+      const boundary='ctbnd'+Date.now();
+      const body=`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`+
+        `--${boundary}\r\nContent-Type: application/json\r\n\r\n${content}\r\n--${boundary}--`;
+      const url=fileId
+        ?`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart&fields=id`
+        :`https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id`;
+      const up=await fetch(url,{method:fileId?'PATCH':'POST',headers:{Authorization:`Bearer ${tk}`,'Content-Type':`multipart/related; boundary=${boundary}`},body});
+      const upj=await up.json();
+      if(upj.id){saveLS('ct_drive_file_id',upj.id);saveLS('ct_last_backup',new Date().toISOString());setStatus('Saved to Google Drive at '+new Date().toLocaleString()+'.');}
+      else throw new Error((upj.error&&upj.error.message)||'Upload failed.');
+    }catch(e){setStatus('Error: '+(e.message||e));}
+    setBusy(false);
+  };
+  const restoreFromDrive=async()=>{
+    setBusy(true);
+    try{
+      setStatus('Connecting to Google Drive...');
+      const tk=await getToken();
+      const fileId=await findFileId(tk);
+      if(!fileId){setStatus('No backup found in your Google Drive yet.');setBusy(false);return;}
+      setStatus('Downloading backup...');
+      const res=await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,{headers:{Authorization:`Bearer ${tk}`}});
+      const obj=await res.json();
+      if(confirm('Restore the backup from Google Drive? It will overwrite the data currently on this device.')){
+        restoreBackup(obj);
+        alert('Backup restored. The app will now reload.');
+        location.reload();
+      }else setBusy(false);
+    }catch(e){setStatus('Error: '+(e.message||e));setBusy(false);}
+  };
+
+  return(
+    <div>
+      <div className="card">
+        <h2>Backup &amp; Restore</h2>
+        <div className="notice" style={{marginBottom:'16px'}}>
+          Your data is saved in this browser automatically and survives page reloads.
+          Use a backup so you never lose it if you clear the browser, switch device, or change browser.
+          {lastBackup&&<div style={{marginTop:'8px',color:'#d4a843'}}>Last backup: {new Date(lastBackup).toLocaleString()}</div>}
+        </div>
+
+        <h3 style={{marginBottom:'10px'}}>Backup file (recommended)</h3>
+        <div style={{display:'flex',gap:'10px',flexWrap:'wrap',marginBottom:'8px'}}>
+          <button className="btn btn-gold" onClick={downloadBackup}>Download backup file</button>
+          <button className="btn btn-outline" onClick={()=>fileRef.current.click()}>Restore from file</button>
+          <input type="file" ref={fileRef} accept="application/json,.json" style={{display:'none'}} onChange={onRestoreFile}/>
+        </div>
+        <div style={{fontSize:'0.8rem',color:'#7a9dbf'}}>Tip: save the downloaded file inside your Google Drive folder (or Drive desktop sync) to keep an off-device copy.</div>
+      </div>
+
+      <div className="card">
+        <h3 style={{marginBottom:'10px'}}>Google Drive</h3>
+        {GDRIVE_CLIENT_ID
+          ?<div style={{display:'flex',gap:'10px',flexWrap:'wrap'}}>
+            <button className="btn btn-gold" disabled={busy} style={{opacity:busy?0.5:1}} onClick={uploadToDrive}>Upload to Google Drive</button>
+            <button className="btn btn-outline" disabled={busy} style={{opacity:busy?0.5:1}} onClick={restoreFromDrive}>Restore from Google Drive</button>
+          </div>
+          :<div className="notice">Google Drive upload is not set up yet. Open index.html and paste your Google OAuth client ID into GDRIVE_CLIENT_ID, then host the app over https (for example GitHub Pages). Until then, use the backup file above.</div>
+        }
+        {status&&<div style={{marginTop:'14px',fontSize:'0.85rem',color:'#b8cfe8'}}>{status}</div>}
+      </div>
+    </div>
+  );
+}
+
+// ===== Export match history to Excel (.xlsx) =====
+function exportMatchesXLSX(history){
+  if(!window.XLSX){alert('The Excel library has not loaded yet. Check your internet connection and try again.');return;}
+  if(!history||!history.length){alert('No matches to export yet.');return;}
+  const XLSX=window.XLSX;
+  const matches=[...history].reverse(); // history is newest-first; number oldest as match 1
+  const fmtDate=m=>{const d=m.id?new Date(m.id):null;return d?d.toLocaleDateString():(m.date||'');};
+  const fmtTime=m=>{const d=m.id?new Date(m.id):null;return d?d.toLocaleTimeString():'';};
+
+  const summary=[['Match #','Date','Time','Team A','Team B','Team A Score','Team B Score','Winner','Result','Overs']];
+  const batting=[['Match #','Date','Team','Player','Runs','Balls','4s','6s','Status']];
+  const bowling=[['Match #','Date','Team','Player','Overs','Runs','Wickets','Wides','No Balls']];
+
+  matches.forEach((m,idx)=>{
+    const no=idx+1, date=fmtDate(m);
+    const res=computeResult(m);
+    const result=(!m.winner)?'':(m.winner==='Tie'?'Match Tied':`${m.winner} ${res.margin}`);
+    summary.push([no,date,fmtTime(m),m.teamA.name,m.teamB.name,`${m.teamA.score}/${m.teamA.wickets}`,`${m.teamB.score}/${m.teamB.wickets}`,m.winner||'',result,m.maxOvers]);
+    [m.teamA,m.teamB].forEach(team=>{
+      team.players.forEach(p=>{
+        const bs=m.batsmen&&(m.batsmen[p.id]||m.batsmen[String(p.id)]);
+        if(bs)batting.push([no,date,team.name,p.name,bs.runs,bs.balls,bs.fours,bs.sixes,bs.out?(bs.howOut||'out'):'not out']);
+      });
+    });
+    if(m.bowlers)Object.entries(m.bowlers).forEach(([id,b])=>{
+      const inA=m.teamA.players.find(p=>String(p.id)===String(id));
+      const pl=inA||m.teamB.players.find(p=>String(p.id)===String(id));
+      bowling.push([no,date,inA?m.teamA.name:m.teamB.name,pl?pl.name:'?',`${b.overs}.${b.balls}`,b.runs,b.wickets,b.wides,b.noBalls]);
+    });
+  });
+
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(summary),'Matches');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(batting),'Batting');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(bowling),'Bowling');
+  XLSX.writeFile(wb,`crictrack-matches-${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// ===== End-of-match celebration image =====
+function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+
+function computeResult(m){
+  const secondKey=m.battingTeam, firstKey=m.bowlingTeam;
+  const first=m[`team${firstKey}`], second=m[`team${secondKey}`];
+  let winnerKey=null;
+  if(m.winner&&m.winner!=='Tie')winnerKey=(m.teamA.name===m.winner)?'A':(m.teamB.name===m.winner)?'B':null;
+  let margin='Match Tied';
+  if(winnerKey===secondKey){
+    const inHand=(second.players.length-1)-second.wickets;
+    margin=`won by ${inHand} wicket${inHand===1?'':'s'}`;
+  }else if(winnerKey===firstKey){
+    const runs=first.score-second.score;
+    margin=`won by ${runs} run${runs===1?'':'s'}`;
+  }
+  return {winnerKey,margin,firstKey,secondKey};
+}
+function topScorer(m,key){
+  let best=null;
+  m[`team${key}`].players.forEach(p=>{const bs=m.batsmen[p.id]||m.batsmen[String(p.id)];if(bs&&(!best||bs.runs>best.runs))best={name:p.name,runs:bs.runs,balls:bs.balls};});
+  return best;
+}
+function bestBowler(m,key){
+  let best=null;
+  m[`team${key}`].players.forEach(p=>{const b=m.bowlers[p.id]||m.bowlers[String(p.id)];if(b&&(!best||b.wickets>best.wickets||(b.wickets===best.wickets&&b.runs<best.runs)))best={name:p.name,wickets:b.wickets,runs:b.runs};});
+  return best;
+}
+
+function drawCelebration(canvas,m){
+  const W=1080,H=1080; canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  const res=computeResult(m);
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#0a1628');g.addColorStop(0.5,'#0f2040');g.addColorStop(1,'#0a1628');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='#d4a843'; ctx.lineWidth=5; roundRect(ctx,24,24,W-48,H-48,28); ctx.stroke();
+
+  const palette=['#d4a843','#27ae60','#2563eb','#dc2626','#8e44ad','#f39c12','#e8bc55','#16a085'];
+  for(let i=0;i<120;i++){
+    const x=Math.random()*W, y=Math.random()*350;
+    ctx.save(); ctx.translate(x,y); ctx.rotate(Math.random()*Math.PI);
+    ctx.fillStyle=palette[i%palette.length];
+    const s=6+Math.random()*14; ctx.fillRect(-s/2,-s/2,s,s*0.55); ctx.restore();
+  }
+
+  ctx.textAlign='center';
+  ctx.fillStyle='#7a9dbf'; ctx.font='600 30px "DM Sans",sans-serif';
+  ctx.fillText('C R I C T R A C K',W/2,86);
+  ctx.font='128px serif'; ctx.fillText(res.winnerKey?'🏆':'🤝',W/2,300);
+  ctx.fillStyle='#7a9dbf'; ctx.font='600 40px "DM Sans",sans-serif';
+  ctx.fillText(res.winnerKey?'W I N N E R':'M A T C H   T I E D',W/2,388);
+
+  const winnerName=res.winnerKey?(res.winnerKey==='A'?m.teamA.name:m.teamB.name):'';
+  if(winnerName){
+    let fs=92; ctx.font=`900 ${fs}px "Playfair Display",Georgia,serif`;
+    while(ctx.measureText(winnerName).width>W-140&&fs>40){fs-=4;ctx.font=`900 ${fs}px "Playfair Display",Georgia,serif`;}
+    ctx.fillStyle='#d4a843'; ctx.fillText(winnerName,W/2,480);
+  }
+  ctx.fillStyle='#e8dcc8'; ctx.font='500 46px "DM Sans",sans-serif';
+  ctx.fillText(res.margin,W/2,res.winnerKey?548:480);
+
+  const panelY=res.winnerKey?610:540;
+  roundRect(ctx,80,panelY,W-160,182,18); ctx.fillStyle='#0a1628'; ctx.fill(); ctx.strokeStyle='#1e3a5f'; ctx.lineWidth=3; ctx.stroke();
+  const drawRow=(key,yy)=>{
+    const t=m[`team${key}`], isW=res.winnerKey===key;
+    ctx.textAlign='left'; ctx.fillStyle=isW?'#d4a843':'#b8cfe8'; ctx.font=`${isW?'700':'500'} 40px "DM Sans",sans-serif`;
+    let nm=t.name; if(ctx.measureText(nm).width>460)nm=nm.slice(0,16);
+    ctx.fillText((isW?'🏆 ':'')+nm,118,yy);
+    ctx.textAlign='right'; ctx.fillStyle=isW?'#d4a843':'#e8dcc8'; ctx.font='700 44px "DM Sans",sans-serif';
+    ctx.fillText(`${t.score}/${t.wickets}  (${t.overs} ov)`,W-118,yy);
+  };
+  drawRow(res.firstKey,panelY+72);
+  ctx.strokeStyle='#1e3a5f'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(118,panelY+98); ctx.lineTo(W-118,panelY+98); ctx.stroke();
+  drawRow(res.secondKey,panelY+152);
+
+  ctx.textAlign='center';
+  const statsKey=res.winnerKey||res.firstKey;
+  const ts=topScorer(m,statsKey), bb=bestBowler(m,statsKey);
+  let sy=panelY+258;
+  ctx.fillStyle='#7a9dbf'; ctx.font='600 32px "DM Sans",sans-serif';
+  ctx.fillText('TOP PERFORMERS',W/2,sy); sy+=60;
+  ctx.fillStyle='#e8dcc8'; ctx.font='500 38px "DM Sans",sans-serif';
+  if(ts)ctx.fillText(`Top scorer:  ${ts.name}  ${ts.runs} (${ts.balls})`,W/2,sy); sy+=54;
+  if(bb)ctx.fillText(`Best bowler:  ${bb.name}  ${bb.wickets}/${bb.runs}`,W/2,sy);
+
+  ctx.fillStyle='#7a9dbf'; ctx.font='400 27px "DM Sans",sans-serif';
+  ctx.fillText(`${m.date||''}     ${m.maxOvers} overs     Made with CricTrack`,W/2,H-58);
+}
+
+function CelebrationModal({match,onClose}){
+  const canvasRef=useRef();
+  const [url,setUrl]=useState(null);
+  useEffect(()=>{
+    let cancelled=false;
+    (async()=>{
+      try{if(document.fonts&&document.fonts.ready)await document.fonts.ready;}catch(e){}
+      if(cancelled||!canvasRef.current)return;
+      drawCelebration(canvasRef.current,match);
+      setUrl(canvasRef.current.toDataURL('image/png'));
+    })();
+    return ()=>{cancelled=true;};
+  },[match]);
+
+  const download=()=>{if(!url)return;const a=document.createElement('a');a.href=url;a.download='crictrack-result.png';document.body.appendChild(a);a.click();a.remove();};
+  const share=()=>{
+    const canvas=canvasRef.current; if(!canvas)return;
+    canvas.toBlob(async blob=>{
+      const file=new File([blob],'crictrack-result.png',{type:'image/png'});
+      if(navigator.canShare&&navigator.canShare({files:[file]})){
+        try{await navigator.share({files:[file],title:'CricTrack Result',text:match.winner==='Tie'?'Match Tied!':`${match.winner} won the match!`});}catch(e){}
+      }else{download();}
+    },'image/png');
+  };
+
+  return(
+    <div className="alert-overlay" onClick={e=>{if(e.target.classList.contains('alert-overlay'))onClose();}}>
+      <div className="alert-box" style={{maxWidth:'430px'}}>
+        <h2>Match Result</h2>
+        <canvas ref={canvasRef} style={{display:'none'}}/>
+        {url?<img src={url} alt="Match result" style={{width:'100%',borderRadius:'12px',border:'2px solid #d4a843'}}/>:<div className="notice">Generating image...</div>}
+        <div style={{display:'flex',gap:'10px',justifyContent:'center',marginTop:'16px',flexWrap:'wrap'}}>
+          <button className="btn btn-gold btn-big" onClick={share}>Share</button>
+          <button className="btn btn-outline btn-big" onClick={download}>Download</button>
+          <button className="btn btn-outline btn-big" onClick={onClose}>Close</button>
+        </div>
+        <div style={{fontSize:'0.78rem',color:'#7a9dbf',marginTop:'10px'}}>Share opens your phone's share sheet (WhatsApp and others). On desktop it downloads the image so you can attach it.</div>
+      </div>
     </div>
   );
 }
