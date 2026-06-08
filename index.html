@@ -355,7 +355,20 @@ function PhotoCropper({src,onCancel,onCrop}){
   const [px,setPx]=useState(0.5);
   const [py,setPy]=useState(0.5);
   const [dim,setDim]=useState(null);
+  const dragRef=useRef(null);
   useEffect(()=>{const img=new Image();img.onload=()=>setDim({w:img.naturalWidth,h:img.naturalHeight});img.src=src;},[src]);
+
+  // Drag the photo to reposition it within the circle (works on mouse and touch).
+  const onDown=e=>{dragRef.current={x:e.clientX,y:e.clientY,px,py};if(e.currentTarget.setPointerCapture)e.currentTarget.setPointerCapture(e.pointerId);};
+  const onMove=e=>{
+    if(!dragRef.current)return;
+    const l=layout(S), slackX=l.drawW-S, slackY=l.drawH-S;
+    let nx=dragRef.current.px, ny=dragRef.current.py;
+    if(slackX>0)nx=Math.min(1,Math.max(0,dragRef.current.px-(e.clientX-dragRef.current.x)/slackX));
+    if(slackY>0)ny=Math.min(1,Math.max(0,dragRef.current.py-(e.clientY-dragRef.current.y)/slackY));
+    setPx(nx);setPy(ny);
+  };
+  const onUp=()=>{dragRef.current=null;};
 
   // Map the chosen zoom/pan to image draw rect for a given output square size.
   const layout=size=>{
@@ -379,15 +392,13 @@ function PhotoCropper({src,onCancel,onCrop}){
     <div className="alert-overlay" onClick={e=>{if(e.target.classList.contains('alert-overlay'))onCancel();}}>
       <div className="alert-box" style={{maxWidth:'340px'}}>
         <h2>Crop Photo</h2>
-        <div style={{width:S,height:S,borderRadius:'50%',overflow:'hidden',margin:'0 auto 16px',position:'relative',background:'#0a1628',border:'2px solid #d4a843'}}>
-          <img src={src} alt="" style={{position:'absolute',left:p.dx,top:p.dy,width:p.drawW,height:p.drawH,maxWidth:'none',userSelect:'none',pointerEvents:'none'}}/>
+        <div onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onPointerLeave={onUp}
+          style={{width:S,height:S,borderRadius:'50%',overflow:'hidden',margin:'0 auto 10px',position:'relative',background:'#0a1628',border:'2px solid #d4a843',cursor:dragRef.current?'grabbing':'grab',touchAction:'none'}}>
+          <img src={src} alt="" draggable={false} style={{position:'absolute',left:p.dx,top:p.dy,width:p.drawW,height:p.drawH,maxWidth:'none',userSelect:'none',pointerEvents:'none'}}/>
         </div>
+        <div style={{fontSize:'0.75rem',color:'#7a9dbf',textAlign:'center',marginBottom:'12px'}}>Drag the photo to reposition it, then zoom if needed.</div>
         <div className="field"><label className="label">Zoom</label>
           <input type="range" min={1} max={3} step={0.01} value={zoom} onChange={e=>setZoom(Number(e.target.value))} style={{width:'100%'}}/></div>
-        <div className="field"><label className="label">Move ↔</label>
-          <input type="range" min={0} max={1} step={0.01} value={px} onChange={e=>setPx(Number(e.target.value))} style={{width:'100%'}}/></div>
-        <div className="field"><label className="label">Move ↕</label>
-          <input type="range" min={0} max={1} step={0.01} value={py} onChange={e=>setPy(Number(e.target.value))} style={{width:'100%'}}/></div>
         <div style={{display:'flex',gap:'10px',justifyContent:'center',marginTop:'8px'}}>
           <button className="btn btn-gold btn-big" onClick={doCrop}>Use Photo</button>
           <button className="btn btn-outline btn-big" onClick={onCancel}>Cancel</button>
