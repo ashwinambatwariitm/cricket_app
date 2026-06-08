@@ -140,16 +140,25 @@
       m[`team${bt}`].wickets+=1;
       if(m.currentBowler&&d.type&&d.type!=='runout')m.bowlers[m.currentBowler].wickets+=1;
       const alive=m[`team${bt}`].players.filter(p=>!m.batsmen[p.id]||!m.batsmen[p.id].out).length;
-      if(alive<=1){return doInningsEnd(m);}
-      // Decide which end the new batsman fills. If the batsmen had crossed while
-      // running (caught/run-out), the not-out batsman ends up at the other end,
-      // so the survivor keeps strike and the new batsman fills the opposite end.
-      const outIsNonStriker=String(outId)===String(m.nonStriker);
-      if(d.crossed){
-        if(outIsNonStriker){m.nonStriker=m.striker;m.striker=null;}
-        else{m.striker=m.nonStriker;m.nonStriker=null;}
+      // With the gully "last man stands" rule the innings ends only when the
+      // last batsman is also out; otherwise it ends when one batsman is left.
+      if(alive<=(m.soloLastMan?0:1)){return doInningsEnd(m);}
+      if(m.soloLastMan&&alive===1){
+        // Last man bats alone: the lone not-out batsman is always on strike,
+        // with no non-striker.
+        const survivor=[m.striker,m.nonStriker].find(id=>id&&String(id)!==String(outId));
+        m.striker=survivor||m.striker; m.nonStriker=null;
       }else{
-        if(outIsNonStriker)m.nonStriker=null;else m.striker=null;
+        // Decide which end the new batsman fills. If the batsmen had crossed while
+        // running (caught/run-out), the not-out batsman ends up at the other end,
+        // so the survivor keeps strike and the new batsman fills the opposite end.
+        const outIsNonStriker=String(outId)===String(m.nonStriker);
+        if(d.crossed){
+          if(outIsNonStriker){m.nonStriker=m.striker;m.striker=null;}
+          else{m.striker=m.nonStriker;m.nonStriker=null;}
+        }else{
+          if(outIsNonStriker)m.nonStriker=null;else m.striker=null;
+        }
       }
     }
 

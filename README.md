@@ -9,6 +9,8 @@ local storage, so your players, teams, and match history stay on your device.
 - Add players with name, role, and an optional photo with a built in cropper
 - Assign players to two teams and mark a captain for each
 - Choose the number of overs and run a toss to decide who bats first
+- Optional gully rule: the last batsman can bat alone (no non-striker), and the
+  innings ends only when he is out
 - Live ball by ball scoring with runs, wides, no balls, and wickets
 - Runs scored off a no ball are credited to the batsman
 - Dismissals with full detail: bowled, lbw, caught, stumped, run out, hit wicket

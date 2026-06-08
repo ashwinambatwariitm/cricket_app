@@ -171,7 +171,7 @@ function loadLS(key,def){try{const r=localStorage.getItem(key);return r?JSON.par
 const GDRIVE_CLIENT_ID='';
 const GDRIVE_FILE_NAME='crictrack-backup.json';
 // Everything the app stores. The backup bundles exactly these keys.
-const LS_KEYS=['ct_players','ct_teamA','ct_teamB','ct_capA','ct_capB','ct_overs','ct_match','ct_history'];
+const LS_KEYS=['ct_players','ct_teamA','ct_teamB','ct_capA','ct_capB','ct_overs','ct_solo','ct_match','ct_history'];
 
 function buildBackup(){
   const data={};
@@ -191,6 +191,7 @@ function App(){
   const [captainA,setCaptainA]=useState(()=>loadLS('ct_capA',null));
   const [captainB,setCaptainB]=useState(()=>loadLS('ct_capB',null));
   const [overs,setOvers]=useState(()=>loadLS('ct_overs',6));
+  const [soloLastMan,setSoloLastMan]=useState(()=>loadLS('ct_solo',false));
   const [match,setMatch]=useState(()=>loadLS('ct_match',null));
   const [matchHistory,setMatchHistory]=useState(()=>loadLS('ct_history',[]));
   const [addPlayer,setAddPlayer]=useState(false);
@@ -208,6 +209,7 @@ function App(){
   useEffect(()=>saveLS('ct_capA',captainA),[captainA]);
   useEffect(()=>saveLS('ct_capB',captainB),[captainB]);
   useEffect(()=>saveLS('ct_overs',overs),[overs]);
+  useEffect(()=>saveLS('ct_solo',soloLastMan),[soloLastMan]);
   useEffect(()=>saveLS('ct_match',match),[match]);
   useEffect(()=>saveLS('ct_history',matchHistory),[matchHistory]);
 
@@ -236,7 +238,7 @@ function App(){
         date:new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}),
         teamA:{name:teamAName,players:[...teamA],captain:captainA,score:0,wickets:0,overs:0,balls:0,extras:0},
         teamB:{name:teamBName,players:[...teamB],captain:captainB,score:0,wickets:0,overs:0,balls:0,extras:0},
-        maxOvers:overs,innings:1,battingTeam:v,bowlingTeam:v==='A'?'B':'A',
+        maxOvers:overs,soloLastMan,innings:1,battingTeam:v,bowlingTeam:v==='A'?'B':'A',
         striker:null,nonStriker:null,currentBowler:null,
         batsmen:{},bowlers:{},ballHistory:[],currentOverBalls:[],status:'live',winner:null
       };
@@ -312,7 +314,7 @@ function App(){
         ))}
       </div>
 
-      {tab==='setup'&&<SetupTab teamAName={teamAName} teamBName={teamBName} setTeamAName={setTeamAName} setTeamBName={setTeamBName} overs={overs} setOvers={setOvers} players={players} onStart={startMatch}/>}
+      {tab==='setup'&&<SetupTab teamAName={teamAName} teamBName={teamBName} setTeamAName={setTeamAName} setTeamBName={setTeamBName} overs={overs} setOvers={setOvers} soloLastMan={soloLastMan} setSoloLastMan={setSoloLastMan} players={players} onStart={startMatch}/>}
       {tab==='players'&&<PlayersTab players={players} addPlayer={addPlayer} setAddPlayer={setAddPlayer} newName={newName} setNewName={setNewName} newRole={newRole} setNewRole={setNewRole} newPhoto={newPhoto} setNewPhoto={setNewPhoto} photoRef={photoRef} handlePhoto={handlePhoto} savePlayer={savePlayer} removePlayer={removePlayer} cropSrc={cropSrc} setCropSrc={setCropSrc}/>}
       {tab==='teams'&&<TeamsTab players={players} teamAName={teamAName} teamBName={teamBName} captainA={captainA} captainB={captainB} setCaptainA={setCaptainA} setCaptainB={setCaptainB} assignTeam={assignTeam}/>}
       {tab==='match'&&<MatchTab match={match} selectBatsmen={selectBatsmen} selectBowler={selectBowler} recordBall={recordBall} getPlayerName={getPlayerName} getPlayerPhoto={getPlayerPhoto} undo={undo} canUndo={undoStack.length>0} changeBowler={changeBowler} changeBatsman={changeBatsman}/>}
@@ -323,7 +325,7 @@ function App(){
   );
 }
 
-function SetupTab({teamAName,teamBName,setTeamAName,setTeamBName,overs,setOvers,players,onStart}){
+function SetupTab({teamAName,teamBName,setTeamAName,setTeamBName,overs,setOvers,soloLastMan,setSoloLastMan,players,onStart}){
   return(
     <div>
       <div className="card">
@@ -336,6 +338,14 @@ function SetupTab({teamAName,teamBName,setTeamAName,setTeamBName,overs,setOvers,
           <div style={{display:'flex',gap:'8px',flexWrap:'wrap',alignItems:'center'}}>
             {[2,5,6,10,15,20].map(o=><button key={o} className={`btn btn-sm ${overs===o?'btn-gold':'btn-outline'}`} onClick={()=>setOvers(o)}>{o}</button>)}
             <input type="number" className="input" style={{width:'80px'}} value={overs} min={1} max={50} onChange={e=>setOvers(Number(e.target.value))}/>
+          </div>
+        </div>
+        <div className="field"><label className="label">Gully rule</label>
+          <div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}}>
+            <button className={`btn btn-sm ${soloLastMan?'btn-gold':'btn-outline'}`} onClick={()=>setSoloLastMan(!soloLastMan)}>
+              {soloLastMan?'✓ Last man bats alone':'Last man bats alone'}
+            </button>
+            <span style={{fontSize:'0.78rem',color:'#7a9dbf'}}>{soloLastMan?'On — innings ends only when the last batsman is out.':'Off — innings ends when one batsman is left (needs a non-striker).'}</span>
           </div>
         </div>
         <div className="stat-row"><span className="stat-label">{teamAName} players</span><span className="stat-val">{players.filter(p=>p.team==='A').length}</span></div>
@@ -524,6 +534,9 @@ function MatchTab({match,selectBatsmen,selectBowler,recordBall,getPlayerName,get
   // over. Fall back to everyone if that would leave nobody (tiny teams).
   const bowlerCandidates=bowlingTeam.players.filter(p=>String(p.id)!==String(match.lastBowler));
   const availBowlers=bowlerCandidates.length?bowlerCandidates:bowlingTeam.players;
+  // Gully "last man stands": when only one batsman is left, he bats alone (no non-striker).
+  const aliveBatsmen=battingTeam.players.filter(p=>{const bs=match.batsmen[p.id];return !bs||!bs.out;}).length;
+  const battingAlone=!!match.soloLastMan&&aliveBatsmen<=1;
 
   const getBallClass=b=>{
     if(b.type==='wide')return 'ball-wide';
@@ -580,9 +593,9 @@ function MatchTab({match,selectBatsmen,selectBowler,recordBall,getPlayerName,get
         <div className="batting-stat">
           {match.nonStriker?<MiniAvatar id={match.nonStriker}/>:<div style={{width:40,height:40,borderRadius:'50%',background:'#1e3a5f',flexShrink:0}}/>}
           <div>
-            <div className="batting-name">{match.nonStriker?getPlayerName(match.nonStriker):'—'}</div>
-            <div className="batting-score">{nonStrikerData?`${nonStrikerData.runs}(${nonStrikerData.balls})`:'0(0)'}</div>
-            <div style={{fontSize:'0.7rem',color:'#7a9dbf'}}>{nonStrikerData?`4s:${nonStrikerData.fours} 6s:${nonStrikerData.sixes}`:''}</div>
+            <div className="batting-name">{match.nonStriker?getPlayerName(match.nonStriker):(battingAlone?'Batting alone':'—')}</div>
+            <div className="batting-score">{match.nonStriker?(nonStrikerData?`${nonStrikerData.runs}(${nonStrikerData.balls})`:'0(0)'):(battingAlone?'gully rule':'')}</div>
+            <div style={{fontSize:'0.7rem',color:'#7a9dbf'}}>{match.nonStriker&&nonStrikerData?`4s:${nonStrikerData.fours} 6s:${nonStrikerData.sixes}`:''}</div>
           </div>
           {match.status==='live'&&match.nonStriker&&nonStrikerData&&nonStrikerData.balls===0&&<button className="btn btn-sm btn-outline" style={{marginLeft:'auto'}} onClick={()=>changeBatsman('nonStriker')}>Change</button>}
         </div>
@@ -597,7 +610,7 @@ function MatchTab({match,selectBatsmen,selectBowler,recordBall,getPlayerName,get
         {match.status==='live'&&match.currentBowler&&<button className="btn btn-sm btn-outline" style={{marginLeft:'auto'}} onClick={changeBowler}>Change</button>}
       </div>
 
-      {(!match.striker||!match.nonStriker)&&match.status==='live'&&(
+      {(!match.striker||(!match.nonStriker&&!battingAlone))&&match.status==='live'&&(
         <div className="card" style={{borderColor:'#d4a843'}}>
           <h3>Select {!match.striker?'Striker ★':'Non-Striker'}</h3>
           <div className="players-list">
@@ -631,7 +644,7 @@ function MatchTab({match,selectBatsmen,selectBowler,recordBall,getPlayerName,get
         </div>
       )}
 
-      {match.striker&&match.nonStriker&&match.currentBowler&&match.status==='live'&&(
+      {match.striker&&(match.nonStriker||battingAlone)&&match.currentBowler&&match.status==='live'&&(
         <div className="card">
           <h3>Record Ball</h3>
           <div className="run-buttons">

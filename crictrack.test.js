@@ -44,8 +44,10 @@ function ensureSelections(m,ctx){
     const bs=m.batsmen[p.id];
     return (!bs||!bs.out)&&p.id!==m.striker&&p.id!==m.nonStriker;
   });
+  const aliveB=battingPlayers.filter(p=>{const bs=m.batsmen[p.id];return !bs||!bs.out;}).length;
+  const alone=m.soloLastMan&&aliveB<=1;   // gully rule: last man bats without a partner
   if(!m.striker){const a=avail();if(a.length)m=selectBatsmen(m,a[0].id,m.nonStriker);}
-  if(!m.nonStriker){const a=avail();if(a.length)m=selectBatsmen(m,m.striker,a[0].id);}
+  if(!m.nonStriker&&!alone){const a=avail();if(a.length)m=selectBatsmen(m,m.striker,a[0].id);}
   if(!m.currentBowler){
     const pick=bowlingPlayers.find(p=>p.id!==ctx.lastBowler)||bowlingPlayers[0];
     m=selectBowler(m,pick.id);
@@ -303,6 +305,35 @@ group('4f. Crossing on caught / run-out sets the right end');
   const s3=m3.striker, n3=m3.nonStriker;
   m3=recordBall(m3,'wicket',0,{type:'runout',fielder:m3[`team${m3.bowlingTeam}`].players[1].id,outBatsman:n3,crossed:true});
   ok(m3.striker===null&&String(m3.nonStriker)===String(s3),'run-out non-striker crossed: new batsman on strike, survivor at non-striker end',`s=${m3.striker} n=${m3.nonStriker}`);
+}
+
+// --- 4g. Gully rule: last man bats alone ------------------------------------
+group('4g. Last-man-stands (soloLastMan) keeps the innings going');
+{
+  let m=makeMatch(50); m.soloLastMan=true; let ctx={};
+  // Fall 4 wickets -> 2 batsmen still alive in a 6-a-side team.
+  for(let i=0;i<4;i++){m=ensureSelections(m,ctx);m=recordBall(m,'wicket',0,{type:'bowled',outBatsman:m.striker});}
+  ok(m.innings===1&&m.status==='live','with 2 left the innings is still going');
+  // 5th wicket -> only 1 batsman left. Normally the innings would end here.
+  m=ensureSelections(m,ctx);
+  m=recordBall(m,'wicket',0,{type:'bowled',outBatsman:m.striker});
+  ok(m.innings===1,'innings continues with the last man (would normally end)');
+  ok(m.striker!=null&&m.nonStriker===null,'last man is on strike, no non-striker',`s=${m.striker} n=${m.nonStriker}`);
+  const aliveNow=m.teamA.players.filter(p=>!m.batsmen[p.id]||!m.batsmen[p.id].out).length;
+  ok(aliveNow===1,'exactly one batsman remains');
+  // Lone batsman scores an odd run -> no partner, so he keeps strike.
+  m=ensureSelections(m,ctx);
+  m=recordBall(m,'run',1);
+  ok(m.nonStriker===null&&m.striker!=null,'lone batsman keeps strike on odd runs (nobody to cross with)');
+  ok(m.teamA.score>=1,'his runs still count');
+  // Last man out -> now the innings ends.
+  m=recordBall(m,'wicket',0,{type:'bowled',outBatsman:m.striker});
+  ok(m.innings===2,'innings ends only when the last man is out');
+
+  // Without the rule, the innings ends at 5 down (one left) as before.
+  let n=makeMatch(50); let c2={};
+  for(let i=0;i<5;i++){n=ensureSelections(n,c2);n=recordBall(n,'wicket',0,{type:'bowled',outBatsman:n.striker});}
+  ok(n.innings===2,'default rule still ends the innings with one batsman left');
 }
 
 // --- 5. Every dismissal type -------------------------------------------------
