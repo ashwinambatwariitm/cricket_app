@@ -157,7 +157,7 @@ h1,h2,h3{font-family:'Playfair Display',serif}
 <body>
 <div id="root"></div>
 <script src="crictrack-engine.js"></script>
-<script type="text/babel">
+<textarea id="app-source" hidden>
 const {useState,useEffect,useRef}=React;
 
 function saveLS(key,val){try{localStorage.setItem(key,JSON.stringify(val));}catch{}}
@@ -1294,7 +1294,15 @@ function AlertModal({alert}){
   );
 }
 
-ReactDOM.render(<App/>,document.getElementById('root'));
-</script>
+const root=ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+  </textarea>
+  <script>
+  (function(){
+    const source=document.getElementById('app-source').value;
+    const output=Babel.transform(source,{presets:[['react',{runtime:'classic'}]]}).code;
+    new Function(output)();
+  })();
+  </script>
 </body>
 </html>
