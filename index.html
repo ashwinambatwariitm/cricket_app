@@ -1164,6 +1164,29 @@ function bestBowler(m,key){
   return best;
 }
 
+function collectBattingRows(m,key){
+  return m[`team${key}`].players.map(p=>{
+    const bs=m.batsmen[p.id]||m.batsmen[String(p.id)];
+    if(!bs)return null;
+    return {name:p.name,runs:bs.runs,balls:bs.balls,fours:bs.fours,sixes:bs.sixes,out:bs.out,howOut:bs.howOut||'out'};
+  }).filter(Boolean);
+}
+
+function collectBowlingRows(m,key){
+  return m[`team${key}`].players.map(p=>{
+    const b=m.bowlers[p.id]||m.bowlers[String(p.id)];
+    if(!b)return null;
+    return {name:p.name,overs:b.overs,balls:b.balls,runs:b.runs,wickets:b.wickets,wides:b.wides,noBalls:b.noBalls};
+  }).filter(Boolean);
+}
+
+function fitText(ctx,text,maxWidth){
+  let value=String(text);
+  if(ctx.measureText(value).width<=maxWidth)return value;
+  while(value.length>1&&ctx.measureText(`${value}…`).width>maxWidth)value=value.slice(0,-1);
+  return `${value}…`;
+}
+
 function drawCelebration(canvas,m){
   const W=1080,H=1080; canvas.width=W; canvas.height=H;
   const ctx=canvas.getContext('2d');
@@ -1235,27 +1258,154 @@ function drawCelebration(canvas,m){
   ctx.fillText(`${m.date||''}     ${m.maxOvers} overs     Made with CricTrack`,W/2,H-58);
 }
 
+function drawFullMatchStats(canvas,m){
+  const W=1440;
+  const res=computeResult(m);
+  const sections=[
+    {title:'1st Innings',batKey:res.firstKey,bowlKey:res.secondKey},
+    {title:'2nd Innings',batKey:res.secondKey,bowlKey:res.firstKey},
+  ].map(section=>{
+    const batting=collectBattingRows(m,section.batKey);
+    const bowling=collectBowlingRows(m,section.bowlKey);
+    return {...section,batting,bowling,height:168+Math.max(batting.length,bowling.length)*30};
+  });
+  const H=270+sections.reduce((sum,section)=>sum+section.height+24,0)+180;
+  canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext('2d');
+
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#08111f');g.addColorStop(0.5,'#0f2040');g.addColorStop(1,'#08111f');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='#d4a843'; ctx.lineWidth=5; roundRect(ctx,24,24,W-48,H-48,28); ctx.stroke();
+  ctx.textAlign='center';
+
+  const club=(m.clubName||'').trim();
+  if(club){
+    let fs=54; ctx.font=`900 ${fs}px "Playfair Display",Georgia,serif`;
+    while(ctx.measureText(club).width>W-140&&fs>28){fs-=2;ctx.font=`900 ${fs}px "Playfair Display",Georgia,serif`;}
+    ctx.fillStyle='#d4a843'; ctx.fillText(club,W/2,84);
+  }else{
+    ctx.fillStyle='#d4a843'; ctx.font='900 48px "Playfair Display",Georgia,serif';
+    ctx.fillText('CRICTRACK MATCH REPORT',W/2,84);
+  }
+  ctx.fillStyle='#7a9dbf'; ctx.font='600 24px "DM Sans",sans-serif';
+  ctx.fillText('COMPLETE MATCH STATISTICS',W/2,126);
+
+  const winnerName=res.winnerKey?(res.winnerKey==='A'?m.teamA.name:m.teamB.name):'Tie';
+  ctx.fillStyle='#e8dcc8'; ctx.font='700 34px "DM Sans",sans-serif';
+  ctx.fillText(`${winnerName==='Tie'?'Match tied':`${winnerName} won`} • ${res.margin}`,W/2,176);
+  ctx.fillStyle='#7a9dbf'; ctx.font='500 24px "DM Sans",sans-serif';
+  ctx.fillText(`${m.teamA.name}: ${m.teamA.score}/${m.teamA.wickets}  |  ${m.teamB.name}: ${m.teamB.score}/${m.teamB.wickets}`,W/2,214);
+
+  let y=262;
+  sections.forEach((section,idx)=>{
+    const battingTeam=m[`team${section.batKey}`];
+    const bowlingTeam=m[`team${section.bowlKey}`];
+    const leftRows=section.batting;
+    const rightRows=section.bowling;
+    const rowCount=Math.max(leftRows.length,rightRows.length);
+    const cardH=section.height;
+    roundRect(ctx,60,y,W-120,cardH,24); ctx.fillStyle='#0a1628'; ctx.fill(); ctx.strokeStyle='#1e3a5f'; ctx.lineWidth=3; ctx.stroke();
+
+    ctx.textAlign='left';
+    ctx.fillStyle='#d4a843'; ctx.font='700 28px "DM Sans",sans-serif';
+    ctx.fillText(`${section.title} • ${battingTeam.name} batting`,92,y+44);
+    ctx.textAlign='right';
+    ctx.fillText(`${bowlingTeam.name} bowling`,W-92,y+44);
+    ctx.fillStyle='#7a9dbf'; ctx.font='500 21px "DM Sans",sans-serif';
+    ctx.fillText(`${battingTeam.score}/${battingTeam.wickets} in ${battingTeam.overs}.${battingTeam.balls} ov`,92,y+76);
+    ctx.textAlign='right';
+    ctx.fillText(`Extras ${battingTeam.extras}`,W-92,y+76);
+
+    const leftX=92,rightX=W/2+24,tableTop=y+104,tableWidth=(W-184)/2;
+    const rowYStart=tableTop+34;
+    const rowH=30;
+
+    const drawTableHeader=(x,title,labels,offsets)=>{
+      ctx.textAlign='left';
+      ctx.fillStyle='#b8cfe8'; ctx.font='700 19px "DM Sans",sans-serif';
+      ctx.fillText(title,x,tableTop);
+      ctx.fillStyle='#7a9dbf'; ctx.font='600 15px "DM Sans",sans-serif';
+      labels.forEach((label,i)=>ctx.fillText(label,x+offsets[i],tableTop+24));
+    };
+
+    drawTableHeader(leftX,`${battingTeam.name} batting`,['Player','R','B','4s','6s','Status'],[0,220,280,350,410,470]);
+    drawTableHeader(rightX,`${bowlingTeam.name} bowling`,['Bowler','Overs','R','W','Wd','NB'],[0,220,300,360,420,480]);
+
+    ctx.font='500 18px "DM Sans",sans-serif';
+    for(let i=0;i<rowCount;i++){
+      const py=rowYStart+i*rowH;
+      if(i<leftRows.length){
+        const row=leftRows[i];
+        ctx.fillStyle=i%2===0?'#0f2040':'#0c1a33';
+        ctx.fillRect(leftX-10,py-18,tableWidth-12,rowH-2);
+        ctx.fillStyle='#e8dcc8';
+        ctx.fillText(fitText(ctx,row.name,210),leftX,py);
+        ctx.fillText(String(row.runs),leftX+220,py);
+        ctx.fillText(String(row.balls),leftX+280,py);
+        ctx.fillText(String(row.fours),leftX+350,py);
+        ctx.fillText(String(row.sixes),leftX+410,py);
+        ctx.fillText(row.out?(fitText(ctx,row.howOut,118)):'not out',leftX+470,py);
+      }
+      if(i<rightRows.length){
+        const row=rightRows[i];
+        ctx.fillStyle=i%2===0?'#0f2040':'#0c1a33';
+        ctx.fillRect(rightX-10,py-18,tableWidth-12,rowH-2);
+        ctx.fillStyle='#e8dcc8';
+        ctx.fillText(fitText(ctx,row.name,190),rightX,py);
+        ctx.fillText(`${row.overs}.${row.balls}`,rightX+220,py);
+        ctx.fillText(String(row.runs),rightX+300,py);
+        ctx.fillText(String(row.wickets),rightX+360,py);
+        ctx.fillText(String(row.wides),rightX+420,py);
+        ctx.fillText(String(row.noBalls),rightX+485,py);
+      }
+    }
+
+    y+=cardH+24;
+  });
+
+  const statsKey=res.winnerKey||res.firstKey;
+  const ts=topScorer(m,statsKey), bb=bestBowler(m,statsKey);
+  roundRect(ctx,60,y,W-120,136,20); ctx.fillStyle='#0f2040'; ctx.fill(); ctx.strokeStyle='#1e3a5f'; ctx.lineWidth=3; ctx.stroke();
+  ctx.textAlign='left';
+  ctx.fillStyle='#d4a843'; ctx.font='700 28px "DM Sans",sans-serif';
+  ctx.fillText('TOP PERFORMERS',92,y+40);
+  ctx.fillStyle='#e8dcc8'; ctx.font='500 24px "DM Sans",sans-serif';
+  ctx.fillText(ts?`Top scorer: ${ts.name} ${ts.runs} (${ts.balls})`:'Top scorer: -',92,y+78);
+  ctx.fillText(bb?`Best bowler: ${bb.name} ${bb.wickets}/${bb.runs}`:'Best bowler: -',92,y+110);
+  ctx.fillStyle='#7a9dbf'; ctx.font='400 22px "DM Sans",sans-serif';
+  ctx.textAlign='right';
+  ctx.fillText(`${m.date||''}   •   ${m.maxOvers} overs   •   Made with CricTrack`,W-92,y+92);
+}
+
 function CelebrationModal({match,onClose}){
   const canvasRef=useRef();
   const [url,setUrl]=useState(null);
+  const [mode,setMode]=useState('compact');
+
   useEffect(()=>{
     let cancelled=false;
     (async()=>{
       try{if(document.fonts&&document.fonts.ready)await document.fonts.ready;}catch(e){}
       if(cancelled||!canvasRef.current)return;
-      drawCelebration(canvasRef.current,match);
+        if(mode==='compact')drawCelebration(canvasRef.current,match);
+        else drawFullMatchStats(canvasRef.current,match);
       setUrl(canvasRef.current.toDataURL('image/png'));
     })();
     return ()=>{cancelled=true;};
-  },[match]);
+    },[match,mode]);
 
-  const download=()=>{if(!url)return;const a=document.createElement('a');a.href=url;a.download='crictrack-result.png';document.body.appendChild(a);a.click();a.remove();};
+    const fileName=mode==='compact'?'crictrack-result.png':'crictrack-full-stats.png';
+    const download=()=>{if(!url)return;const a=document.createElement('a');a.href=url;a.download=fileName;document.body.appendChild(a);a.click();a.remove();};
   const share=()=>{
     const canvas=canvasRef.current; if(!canvas)return;
     canvas.toBlob(async blob=>{
-      const file=new File([blob],'crictrack-result.png',{type:'image/png'});
+        const file=new File([blob],fileName,{type:'image/png'});
       if(navigator.canShare&&navigator.canShare({files:[file]})){
-        try{await navigator.share({files:[file],title:'CricTrack Result',text:match.winner==='Tie'?'Match Tied!':`${match.winner} won the match!`});}catch(e){}
+          const shareText=mode==='compact'
+            ?(match.winner==='Tie'?'Match Tied!':`${match.winner} won the match!`)
+            :'Full match statistics from CricTrack';
+          try{await navigator.share({files:[file],title:mode==='compact'?'CricTrack Result':'CricTrack Match Stats',text:shareText});}catch(e){}
       }else{download();}
     },'image/png');
   };
@@ -1263,15 +1413,19 @@ function CelebrationModal({match,onClose}){
   return(
     <div className="alert-overlay" onClick={e=>{if(e.target.classList.contains('alert-overlay'))onClose();}}>
       <div className="alert-box" style={{maxWidth:'430px'}}>
-        <h2>Match Result</h2>
+          <h2>{mode==='compact'?'Match Result':'Match Statistics'}</h2>
+          <div style={{display:'flex',gap:'8px',justifyContent:'center',flexWrap:'wrap',marginBottom:'12px'}}>
+            <button className={`btn btn-sm ${mode==='compact'?'btn-gold':'btn-outline'}`} onClick={()=>setMode('compact')}>Compact card</button>
+            <button className={`btn btn-sm ${mode==='full'?'btn-gold':'btn-outline'}`} onClick={()=>setMode('full')}>Full stats</button>
+          </div>
         <canvas ref={canvasRef} style={{display:'none'}}/>
         {url?<img src={url} alt="Match result" style={{width:'100%',borderRadius:'12px',border:'2px solid #d4a843'}}/>:<div className="notice">Generating image...</div>}
         <div style={{display:'flex',gap:'10px',justifyContent:'center',marginTop:'16px',flexWrap:'wrap'}}>
-          <button className="btn btn-gold btn-big" onClick={share}>Share</button>
+            <button className="btn btn-gold btn-big" onClick={share}>{mode==='compact'?'Share card':'Share stats'}</button>
           <button className="btn btn-outline btn-big" onClick={download}>Download</button>
           <button className="btn btn-outline btn-big" onClick={onClose}>Close</button>
         </div>
-        <div style={{fontSize:'0.78rem',color:'#7a9dbf',marginTop:'10px'}}>Share opens your phone's share sheet (WhatsApp and others). On desktop it downloads the image so you can attach it.</div>
+          <div style={{fontSize:'0.78rem',color:'#7a9dbf',marginTop:'10px'}}>{mode==='compact'?'Compact card shows the winner and top performers.':'Full stats shows both innings batting and bowling scorecards.'}</div>
       </div>
     </div>
   );
