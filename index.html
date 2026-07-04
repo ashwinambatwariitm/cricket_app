@@ -715,7 +715,7 @@ function MatchTab({match,selectBatsmen,selectBowler,recordBall,getPlayerName,get
           <div className="alert-box" style={{maxWidth:'460px'}}>
             <h2>🚨 How was the batsman out?</h2>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',margin:'8px 0 16px'}}>
-              {[['bowled','Bowled'],['lbw','LBW'],['caught','Caught'],['stumped','Stumped'],['runout','Run Out'],['hitwicket','Hit Wicket']].map(([v,l])=>(
+              {[['bowled','Bowled'],['lbw','LBW'],['caught','Caught'],['stumped','Stumped'],['runout','Run Out'],['hitwicket','Hit Wicket'],['boxout','BOX Out']].map(([v,l])=>(
                 <button key={v} className={`btn ${wkt.type===v?'btn-gold':'btn-outline'}`} onClick={()=>setWkt({...wkt,type:v,fielder:null,outBatsman:match.striker})}>{l}</button>
               ))}
             </div>
@@ -776,6 +776,7 @@ function MatchTab({match,selectBatsmen,selectBowler,recordBall,getPlayerName,get
             <div style={{display:'flex',gap:'8px',flexWrap:'wrap',margin:'8px 0 14px'}}>
               <button className={`btn btn-sm ${!extra.dType?'btn-gold':'btn-outline'}`} onClick={()=>setExtra({...extra,dType:null,fielder:null})}>No wicket</button>
               <button className={`btn btn-sm ${extra.dType==='runout'?'btn-gold':'btn-outline'}`} onClick={()=>setExtra({...extra,dType:'runout',fielder:null,outBatsman:match.striker})}>Run Out</button>
+              <button className={`btn btn-sm ${extra.dType==='boxout'?'btn-gold':'btn-outline'}`} onClick={()=>setExtra({...extra,dType:'boxout',fielder:null,outBatsman:match.striker})}>BOX Out</button>
               {extra.kind==='wide'&&<button className={`btn btn-sm ${extra.dType==='stumped'?'btn-gold':'btn-outline'}`} onClick={()=>setExtra({...extra,dType:'stumped',fielder:null,outBatsman:match.striker})}>Stumped</button>}
             </div>
             {extra.dType==='runout'&&(
@@ -807,12 +808,12 @@ function MatchTab({match,selectBatsmen,selectBowler,recordBall,getPlayerName,get
               </div>
             )}
             {(()=>{
-              const canConfirm=!extra.dType||!!extra.fielder;
+              const canConfirm=!extra.dType||extra.dType==='boxout'||!!extra.fielder;
               return(
                 <div style={{display:'flex',gap:'10px',justifyContent:'center',marginTop:'8px'}}>
                   <button className="btn btn-gold btn-big" style={{opacity:canConfirm?1:0.4,cursor:canConfirm?'pointer':'not-allowed'}} disabled={!canConfirm}
                     onClick={()=>{
-                      const dismissal=extra.dType?{type:extra.dType,fielder:extra.fielder,outBatsman:extra.dType==='stumped'?match.striker:extra.outBatsman,crossed:!!extra.crossed}:null;
+                      const dismissal=extra.dType?{type:extra.dType,fielder:extra.fielder,outBatsman:extra.dType==='stumped'||extra.dType==='boxout'?match.striker:extra.outBatsman,crossed:!!extra.crossed}:null;
                       recordBall(extra.kind,extra.runs,dismissal);setExtra(null);
                     }}>Confirm</button>
                   <button className="btn btn-outline btn-big" onClick={()=>setExtra(null)}>Cancel</button>
